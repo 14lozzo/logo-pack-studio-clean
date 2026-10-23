@@ -20,7 +20,7 @@ function photo(c,key,x,y,w,h){if(!imgs[key]){placeholder(c,x,y,w,h);return}const
 function panel(c,x,y,w,h,col='#F5F2ED'){fill(c,x,y,w,h,col)}
 function label(c,s,x,y){txt(c,String(s).toUpperCase(),x,y,15,S.primary,'Arial','bold')}
 function swatch(c,col,x,y,w,h,name){fill(c,x,y,w,h,col);txt(c,name,x,y+h+32,17,'#292929','Arial','bold');txt(c,col.toUpperCase(),x,y+h+57,17,'#555')}
-function frame(c,n){fill(c,0,0,W,H,'#FFFFFF');fill(c,0,0,W,9,S.primary);txt(c,'BRAND GUIDELINES',M,45,12,'#181818','Arial','bold');txt(c,S.brandName,RIGHT-180,45,12,'#181818','Arial','bold',180);line(c,M,60,RIGHT,60,'#E8E3DC');txt(c,String(n+1).padStart(2,'0')+' / 20',RIGHT-55,H-44,13,'#8D8781');txt(c,'IDENTIDADE VISUAL  /  '+S.brandName,M,H-44,12,'#8D8781')}
+function frame(c,n){fill(c,0,0,W,H,'#FFFFFF');fill(c,0,0,W,9,S.primary);txt(c,'BRAND GUIDELINES',M,45,12,'#181818','Arial','bold');txt(c,S.brandName,RIGHT-180,45,12,'#181818','Arial','bold',180);line(c,M,60,RIGHT,60,'#E8E3DC');txt(c,String(n+1).padStart(2,'0')+' / '+(window.__pdfTotalPages||20),RIGHT-85,H-44,13,'#8D8781');txt(c,'IDENTIDADE VISUAL  /  '+S.brandName,M,H-44,12,'#8D8781')}
 function heading(c,n,kicker){label(c,kicker||'IDENTIDADE VISUAL',M,115);txt(c,pageTitles[n],M,185,48,'#161616',fontFamilies.h1,'normal',765);line(c,M,215,RIGHT,215,'#D9D4CE')}
 function caption(c,s,y){txt(c,s,M,y,18,'#69645E',fontFamilies.h3)}
 function variantCanvas(key,mode,bg){const a=document.createElement('canvas');a.width=800;a.height=340;const c=a.getContext('2d');if(bg)fill(c,0,0,800,340,bg);const im=imgs[key];if(!im)return a;let scale=Math.min(730/im.width,260/im.height),w=im.width*scale,h=im.height*scale,x=(800-w)/2,y=(340-h)/2;c.drawImage(im,x,y,w,h);if(mode==='black'||mode==='white'||mode==='primary'){c.globalCompositeOperation='source-in';fill(c,0,0,800,340,mode==='black'?'#080808':mode==='white'?'#FFFFFF':S.primary);c.globalCompositeOperation='source-over'}return a}
@@ -76,6 +76,7 @@ function dataURLBlob(data){let [h,body]=data.split(','),mime=h.match(/data:(.*?)
 function download(blob,name){let u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),3000)}
 function pageCanvas(n,scale=1){let c=document.createElement('canvas');c.width=Math.round(W*scale);c.height=Math.round(H*scale);const q=c.getContext('2d');q.scale(scale,scale);renderPage(n,q);return c}
 async function makePdf(){
+  await preloadPdfMockups();
   // Lossless high-resolution PDF. Canvas text is still raster; unlike the previous
   // JPEG encoder, this avoids lossy compression around thin letterforms and logos.
   await document.fonts.ready;
@@ -92,22 +93,39 @@ async function makePdf(){
     const compressed=await new Response(new Blob([rgb]).stream().pipeThrough(new CompressionStream('deflate'))).arrayBuffer();
     return new Uint8Array(compressed);
   }
+  const pages=buildPdfPages();window.__pdfTotalPages=pages.length;
   add('%PDF-1.4\n%----\n');
   object(1,'<< /Type /Catalog /Pages 2 0 R >>');
-  object(2,'<< /Type /Pages /Kids ['+Array.from({length:20},(_,i)=>`${3+i*3} 0 R`).join(' ') +'] /Count 20 >>');
-  for(let n=0;n<20;n++){
+  object(2,'<< /Type /Pages /Kids ['+Array.from({length:pages.length},(_,i)=>`${3+i*3} 0 R`).join(' ') +'] /Count '+pages.length+' >>');
+  for(let n=0;n<pages.length;n++){
     const pageId=3+n*3,imgId=pageId+1,contentId=pageId+2;
-    const highResCanvas=pageCanvas(n,3); const pic=await losslessRGB(highResCanvas);
+    const highResCanvas=pdfPageCanvas(pages[n],3); const pic=await losslessRGB(highResCanvas);
     object(pageId,`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.276 841.89] /Resources << /XObject << /Im0 ${imgId} 0 R >> >> /Contents ${contentId} 0 R >>`);
     offsets[imgId]=pos;add(`${imgId} 0 obj\n<< /Type /XObject /Subtype /Image /Width ${highResCanvas.width} /Height ${highResCanvas.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /FlateDecode /Length ${pic.length} >>\nstream\n`);add(pic);add('\nendstream\nendobj\n');
     const content='q\n595.276 0 0 841.89 0 0 cm\n/Im0 Do\nQ\n';
     object(contentId,`<< /Length ${enc.encode(content).length} >>\nstream\n${content}endstream`);
     await new Promise(r=>setTimeout(r,0));
   }
-  const start=pos;add(`xref\n0 63\n0000000000 65535 f \n`);for(let i=1;i<=62;i++)add(String(offsets[i]).padStart(10,'0')+' 00000 n \n');
-  add(`trailer\n<< /Size 63 /Root 1 0 R >>\nstartxref\n${start}\n%%EOF`);
+  const start=pos;add(`xref\n0 ${3+pages.length*3}\n0000000000 65535 f \n`);for(let i=1;i<3+pages.length*3;i++)add(String(offsets[i]).padStart(10,'0')+' 00000 n \n');
+  add(`trailer\n<< /Size ${3+pages.length*3} /Root 1 0 R >>\nstartxref\n${start}\n%%EOF`);
   return new Blob(chunks,{type:'application/pdf'});
 }
+
+// V7.1: applied mockups are stored per project, with flexible category pages.
+const pdfCategories=[['stationery','Estacionário'],['social','Redes sociais'],['campaign','Campanhas'],['photo','Direção fotográfica']];
+function appliedFor(cat){return (S.appliedMockups||[]).filter(m=>m.category===cat&&m.data)}
+function buildPdfPages(){const pages=[];for(let i=0;i<20;i++){
+ if(i>=14&&i<=17){const cat=pdfCategories[i-14][0],items=appliedFor(cat);for(let j=0;j<items.length;j+=4)pages.push({type:'mockups',cat,items:items.slice(j,j+4),sectionPage:Math.floor(j/4)+1});}
+ else pages.push({type:'original',index:i});
+ }return pages}
+function drawContainImage(c,im,x,y,w,h){fill(c,x,y,w,h,'#F6F3EF');const k=Math.min(w/im.width,h/im.height);c.drawImage(im,x+(w-im.width*k)/2,y+(h-im.height*k)/2,im.width*k,im.height*k)}
+function pdfPageCanvas(spec,scale=1){if(spec.type==='original')return pageCanvas(spec.index,scale);const c=document.createElement('canvas');c.width=Math.round(W*scale);c.height=Math.round(H*scale);const q=c.getContext('2d');q.scale(scale,scale);renderMockupsPdfPage(q,spec);return c}
+function renderMockupsPdfPage(c,spec){const idx=pdfCategories.findIndex(([key])=>key===spec.cat);frame(c,14+idx);label(c,'APLICAÇÕES / '+String(spec.sectionPage).padStart(2,'0'),M,115);txt(c,pdfCategories[idx][1],M,185,48,'#161616',fontFamilies.h1,'normal',765);line(c,M,215,RIGHT,215,'#D9D4CE');const n=spec.items.length;
+ const boxes=n===1?[[M,260,768,815]]:n===2?[[M,260,768,390],[M,700,768,390]]:n===3?[[M,255,768,475],[M,775,370,315],[M+398,775,370,315]]:[[M,255,370,380],[M+398,255,370,380],[M,680,370,380],[M+398,680,370,380]];
+ spec.items.forEach((m,i)=>{const [x,y,w,h]=boxes[i],im=window.__mockupImages?.[m.id];if(im?.complete&&im.naturalWidth)drawContainImage(c,im,x,y,w,h-37);else placeholder(c,x,y,w,h-37,'Imagem indisponível');txt(c,m.name||'Aplicação',x,y+h-9,17,'#292929',fontFamilies.h2,'bold',w)});
+}
+async function preloadPdfMockups(){window.__mockupImages={};await Promise.all((S.appliedMockups||[]).map(m=>new Promise(resolve=>{const im=new Image();im.onload=()=>{window.__mockupImages[m.id]=im;resolve()};im.onerror=resolve;im.src=m.data})));}
+
 function boardCanvas(){
  const b=document.createElement('canvas');b.width=1200;b.height=1000;const c=b.getContext('2d');const g=10,tw=380,th=320,cols=[S.primary,S.secondary,S.support1,S.support2];
  fill(c,0,0,1200,1000,'#EAE5DE');
@@ -151,7 +169,7 @@ function getOriginalSvg(key){let asset=S.assets[key];if(!asset?.name.toLowerCase
 function svgVariant(key,mode,bg=null){let a=S.assets[key];if(!a)return null;const original=getOriginalSvg(key),base=original?`data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(original)))}`:a.data;let color=mode==='black'?'#000000':mode==='white'?'#FFFFFF':mode==='primary'?S.primary:null;let inner=color?`<mask id="shape" mask-type="alpha" maskUnits="userSpaceOnUse"><image href="${base}" x="0" y="0" width="1000" height="600" preserveAspectRatio="xMidYMid meet"/></mask><rect x="0" y="0" width="1000" height="600" fill="${color}" mask="url(#shape)"/>`:`<image href="${base}" x="0" y="0" width="1000" height="600" preserveAspectRatio="xMidYMid meet"/>`;return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1000 600" width="1000" height="600">${bg?`<rect width="1000" height="600" fill="${bg}"/>`:''}${inner}</svg>`}
 function variantTransparentCanvas(key,mode,bg){const a=document.createElement('canvas');a.width=1200;a.height=720;const c=a.getContext('2d');if(bg)fill(c,0,0,1200,720,bg);let im=imgs[key];if(!im)return a;const pad=60,sc=Math.min((1200-pad*2)/im.width,(720-pad*2)/im.height),w=im.width*sc,h=im.height*sc;c.drawImage(im,(1200-w)/2,(720-h)/2,w,h);if(mode!=='original'){let colored=document.createElement('canvas');colored.width=1200;colored.height=720;let q=colored.getContext('2d');q.drawImage(im,(1200-w)/2,(720-h)/2,w,h);q.globalCompositeOperation='source-in';fill(q,0,0,1200,720,mode==='black'?'#000000':mode==='white'?'#FFFFFF':S.primary);c.clearRect(0,0,1200,720);if(bg)fill(c,0,0,1200,720,bg);c.drawImage(colored,0,0)}return a}
 function faviconCanvas(key,mode,size){let a=document.createElement('canvas');a.width=a.height=size;let c=a.getContext('2d'),im=imgs[key];if(!im)return a;let pad=Math.max(1,Math.round(size*.08)),scale=Math.min((size-2*pad)/im.width,(size-2*pad)/im.height),w=im.width*scale,h=im.height*scale;c.drawImage(im,(size-w)/2,(size-h)/2,w,h);if(mode!=='original'){c.globalCompositeOperation='source-in';fill(c,0,0,size,size,mode==='black'?'#000000':mode==='white'?'#FFFFFF':S.primary);c.globalCompositeOperation='source-over'}return a}
-function projectWarnings(){let w=[];if(!S.assets.logo)w.push('Falta o logótipo original.');if(!S.assets.symbol)w.push('Falta o símbolo para os favicons e patterns.');for(let k of ['h1','h2','h3'])if(!S.fonts[k])w.push(`Fonte ${k.toUpperCase()} não carregada (será utilizada uma fonte de sistema).`);for(let k of ['stationery','social','campaign','photo'])if(!S.assets[k])w.push(`Aplicação ${k} sem imagem real; aparecerá um marcador de material em falta.`);if(!window.JSZip)w.push('Motor ZIP indisponível.');return w}
+function projectWarnings(){let w=[];if(!S.assets.logo)w.push('Falta o logótipo original.');if(!S.assets.symbol)w.push('Falta o símbolo para os favicons e patterns.');for(let k of ['h1','h2','h3'])if(!S.fonts[k])w.push(`Fonte ${k.toUpperCase()} não carregada (será utilizada uma fonte de sistema).`);if(!window.JSZip)w.push('Motor ZIP indisponível.');return w}
 function showValidation(){let v=projectWarnings();$('validation').innerHTML=v.length?'<strong>Verificações:</strong><ul>'+v.map(x=>`<li>${svgEscape(x)}</li>`).join('')+'</ul>':'<strong>Todos os elementos principais estão presentes.</strong>';return v}
 function renderMockup(){let c=$('mockupPreview');if(!c)return;c.innerHTML='';let t=$('mockupType').value,el=document.createElement('canvas');el.width=660;el.height=400;let q=el.getContext('2d');fill(q,0,0,660,400,'#EAE7E2');if(t==='business'){q.save();q.translate(80,55);q.rotate(-.07);fill(q,0,0,490,285,S.secondary);if(imgs.logo)fitImg(q,'logo',38,62,414,145,10);else txt(q,'CARREGAR LOGÓTIPO',50,140,23,'#666');q.restore()}else if(t==='social'||t==='story'){let w=t==='story'?220:350,x=(660-w)/2;fill(q,x,22,w,356,S.primary);if(imgs.logo){q.save();q.translate(x+20,80);fitImg(q,'logo',0,0,w-40,180,4);q.restore()}else txt(q,'LOGÓTIPO',x+40,180,24,'#FFFFFF');txt(q,t==='story'?'STORY 9:16':'POST 1:1',x+22,347,17,'#FFFFFF')}else if(t==='poster'){fill(q,140,18,380,365,S.secondary);if(imgs.logo)fitImg(q,'logo',170,115,320,160,5);txt(q,S.brandName,180,315,24,'#181818')}else{fill(q,40,115,580,200,'#D9D7D2');fill(q,55,130,550,170,S.secondary);if(imgs.logo)fitImg(q,'logo',90,140,480,145,5)}c.append(el)}
 async function loadMockupLibrary(){let u=$('mockupManifest').value.trim();if(!u){$('libraryStatus').textContent='Indica um URL para um ficheiro JSON alojado no GitHub.';return}try{let url=new URL(u);if(url.protocol!=='https:')throw Error('É necessário HTTPS');let r=await fetch(u);if(!r.ok)throw Error('HTTP '+r.status);let j=await r.json();if(!Array.isArray(j.mockups))throw Error('Formato esperado: {"mockups":[...]}');let opts=j.mockups.filter(x=>x&&typeof x.name==='string'&&typeof x.image==='string'&&/^https:\/\//.test(x.image));$('libraryStatus').textContent=`${opts.length} mockups listados. Usa o upload para integrar imagens nos materiais.`;let grid=document.createElement('div');grid.className='library-grid';for(let m of opts.slice(0,20)){let card=document.createElement('div'),im=document.createElement('img'),b=document.createElement('button');im.src=m.image;im.loading='lazy';im.alt=m.name;b.textContent='Abrir imagem';b.onclick=()=>window.open(m.image,'_blank','noopener');card.append(im,document.createTextNode(m.name),b);grid.append(card)}$('libraryStatus').append(grid)}catch(e){$('libraryStatus').textContent='Não foi possível carregar a biblioteca: '+e.message}}
@@ -303,7 +321,7 @@ async function applyLibraryMockupV4(m,b){
 }
 $('loadLibrary').onclick=loadLibraryV4;
 $('mockupManifest').placeholder='Biblioteca incluída automaticamente · ou URL do teu GitHub';
-loadLibraryV4();
+// V7.1: GitHub mockup library disabled; projects start without mockups.
 
 
 
@@ -394,7 +412,7 @@ loadLibraryV4();
   mode.onchange=()=>{cfg.mode=mode.value;draw()};reset.onclick=()=>{const p=m.placement;cfg.quad=[{x:p.x,y:p.y},{x:p.x+p.w,y:p.y},{x:p.x+p.w,y:p.y+p.h},{x:p.x,y:p.y+p.h}];draw()};close.onclick=()=>{editor.remove();editor=null};
   apply.onclick=async()=>{if(!base||!imgs.logo){alert('Carrega primeiro o logótipo e aguarda a imagem do mockup.');return}
    try{apply.disabled=true;const result=renderComposite(base,imgs.logo,cfg.quad,cfg.mode).toDataURL('image/png');
-    S.assets[m.category]={data:result,name:'mockup-'+filenameSafe(m.name)+'.png'};await imageFromData(m.category,result);render();note.textContent='Aplicado! A imagem está no Brand Board e no PDF. Guarda o projeto JSON para manter esta escolha.';
+    S.assets[m.category]={data:result,name:'mockup-'+filenameSafe(m.name)+'.png'};await imageFromData(m.category,result);S.appliedMockups=S.appliedMockups||[];const item={id:m.id,name:m.name,category:m.category,data:result};const index=S.appliedMockups.findIndex(x=>x.id===m.id);if(index>=0)S.appliedMockups[index]=item;else S.appliedMockups.push(item);render();window.dispatchEvent(new Event('mockups-updated'));note.textContent='Aplicado! A imagem está no Brand Board e no PDF. Guarda o projeto JSON para manter esta escolha.';
    }catch(e){alert('Erro ao aplicar: '+e.message)}finally{apply.disabled=false}
   };
  }
