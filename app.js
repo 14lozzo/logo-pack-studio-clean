@@ -2,8 +2,8 @@
 /* Logo Pack Studio Clean — one canvas renderer for preview and PDF. No legacy dependencies. */
 const W=900,H=1273,M=66,RIGHT=W-M;
 const pageTitles=['Capa','Manifesto','Conceito','Sistema de identidade','Logótipo principal','Versões cromáticas','Símbolo e monograma','Área de proteção','Usos corretos e incorretos','Cores principais','Cores de apoio','Sistema tipográfico','Hierarquia tipográfica','Patterns e elementos','Estacionário','Redes sociais','Campanhas','Direção fotográfica','Brand Board','Créditos'];
-const fields=['brandName','tagline','essence','personality','concept','credits','primary','secondary','support1','support2','patternScale','patternGap','safeArea','minPrint','minDigital'];
-const S={brandName:'Nova Marca',tagline:'',essence:'',personality:'',concept:'',credits:'',primary:'#CE1738',secondary:'#E9E1D5',support1:'#7B172E',support2:'#D1C4B4',patternScale:'72',patternGap:'28',patternMode:'generate',safeArea:'10',minPrint:'25',minDigital:'120',mockupType:'business',mockupManifest:'',assets:{},fonts:{}};
+const fields=['brandName','tagline','essence','personality','concept','credits','primary','secondary','support1','support2','patternScale','patternGap','patternRotation','patternLayout','safeArea','minPrint','minDigital'];
+const S={brandName:'Nova Marca',tagline:'',essence:'',personality:'',concept:'',credits:'',primary:'#CE1738',secondary:'#E9E1D5',support1:'#7B172E',support2:'#D1C4B4',patternScale:'72',patternGap:'28',patternRotation:'0',patternLayout:'stagger',patternMode:'generate',safeArea:'10',minPrint:'25',minDigital:'120',mockupType:'business',mockupManifest:'',assets:{},fonts:{}};
 const imgs={},fontFamilies={h1:'Georgia',h2:'Arial',h3:'Arial'};
 const $=id=>document.getElementById(id),canvas=$('pageCanvas'),ctx=canvas.getContext('2d');let currentPage=0,renderToken=0;
 const escName=()=>filenameSafe(S.brandName||'Marca').replace(/^-|-$/g,'')||'Marca';
@@ -25,10 +25,15 @@ function heading(c,n,kicker){label(c,kicker||'IDENTIDADE VISUAL',M,115);txt(c,pa
 function caption(c,s,y){txt(c,s,M,y,18,'#69645E',fontFamilies.h3)}
 function variantCanvas(key,mode,bg){const a=document.createElement('canvas');a.width=800;a.height=340;const c=a.getContext('2d');if(bg)fill(c,0,0,800,340,bg);const im=imgs[key];if(!im)return a;let scale=Math.min(730/im.width,260/im.height),w=im.width*scale,h=im.height*scale,x=(800-w)/2,y=(340-h)/2;c.drawImage(im,x,y,w,h);if(mode==='black'||mode==='white'||mode==='primary'){c.globalCompositeOperation='source-in';fill(c,0,0,800,340,mode==='black'?'#080808':mode==='white'?'#FFFFFF':S.primary);c.globalCompositeOperation='source-over'}return a}
 function variant(c,key,mode,x,y,w,h,bg){panel(c,x,y,w,h,bg||'#F4F0E9');if(!imgs[key]){placeholder(c,x,y,w,h,'Carregar original');return}let v=variantCanvas(key,mode),ratio=Math.min((w-28)/v.width,(h-28)/v.height);c.drawImage(v,x+(w-v.width*ratio)/2,y+(h-v.height*ratio)/2,v.width*ratio,v.height*ratio)}
-function pattern(c,x,y,w,h){c.save();c.beginPath();c.rect(x,y,w,h);c.clip();fill(c,x,y,w,h,S.secondary);if(S.patternMode==='upload'&&imgs.pattern){const im=imgs.pattern,sz=170,iw=sz,ih=sz*im.height/im.width;for(let py=y;py<y+h;py+=ih)for(let px=x;px<x+w;px+=iw)c.drawImage(im,px,py,iw,ih)}else if(imgs.symbol){let step=Number(S.patternScale)+Number(S.patternGap)+30,sz=Number(S.patternScale);let v=variantCanvas('symbol','primary');for(let py=y;py<y+h+step;py+=step)for(let px=x;px<x+w+step;px+=step){c.drawImage(v,px+(Math.floor((py-y)/step)%2)*step/2,py,sz,sz*.7)}}else txt(c,'Carregar símbolo para gerar pattern',x+20,y+h/2,18,'#888');c.restore()}
+function pattern(c,x,y,w,h){
+ c.save();c.beginPath();c.rect(x,y,w,h);c.clip();fill(c,x,y,w,h,S.secondary);
+ if(S.patternMode==='upload'&&imgs.pattern){let im=imgs.pattern,sz=Math.max(50,Number(S.patternScale)*2),ih=sz*im.height/im.width;for(let py=y;py<y+h;py+=ih)for(let px=x;px<x+w;px+=sz)c.drawImage(im,px,py,sz,ih)}
+ else if(imgs.symbol){let v=variantCanvas('symbol','primary'),size=Math.max(16,Number(S.patternScale)),step=Math.max(size+4,size+Number(S.patternGap)),rot=Number(S.patternRotation||0)*Math.PI/180,layout=S.patternLayout||'stagger';for(let row=-1;row<Math.ceil(h/step)+2;row++)for(let col=-1;col<Math.ceil(w/step)+2;col++){let dx=layout==='stagger'&&row%2?step/2:layout==='diagonal'?row*step*.25:0,px=x+col*step+dx+size/2,py=y+row*step+size/2;c.save();c.translate(px,py);c.rotate(rot);c.drawImage(v,-size/2,-size/2,size,size);c.restore()}}
+ else txt(c,'Carregar símbolo para gerar pattern',x+20,y+h/2,18,'#888');c.restore()
+}
 function card(c,key,x,y,w,h,title){if(imgs[key])photo(c,key,x,y,w,h-48);else if(['stationery','social','campaign'].includes(key)){const kind={stationery:'business',social:'social',campaign:'outdoor'}[key];drawConceptMockup(c,kind,x,y,w,h-48);txt(c,'SIMULAÇÃO GRÁFICA · substituir por aplicação real',x+12,y+h-72,15,'#555','Arial','normal',w-24)}else photo(c,key,x,y,w,h-48);txt(c,title,x,y+h-12,19,'#24211F',fontFamilies.h2,'bold',w)}
 function drawConceptMockup(c,kind,x,y,w,h){c.save();c.beginPath();c.rect(x,y,w,h);c.clip();fill(c,x,y,w,h,'#EAE7E2');let rx=x+w*.12,ry=y+h*.13,rw=w*.76,rh=h*.65;if(kind==='outdoor'){rx=x+w*.06;ry=y+h*.28;rw=w*.88;rh=h*.38}if(kind==='social'){rw=Math.min(w*.60,h*.66);rh=rw;rx=x+(w-rw)/2;ry=y+(h-rh)/2}fill(c,rx+12,ry+12,rw,rh,'#D7D1C9');fill(c,rx,ry,rw,rh,kind==='social'?S.primary:S.secondary);if(imgs.logo){let margin=rw*.1;logo(c,rx+margin,ry+rh*.2,rw-2*margin,rh*.6)}else txt(c,'ADICIONAR LOGÓTIPO',rx+18,ry+rh*.5,19,'#666','Arial','normal',rw-36);c.restore()}
-function renderPage(n,c){c.save();frame(c,n);if(n===0){fill(c,0,80,W,950,S.secondary);fill(c,0,80,16,950,S.primary);logo(c,65,260,770,430);txt(c,'BRAND GUIDELINES',M,190,19,contrast(S.secondary),'Arial','bold');txt(c,S.tagline||'SISTEMA DE IDENTIDADE VISUAL',M,935,25,contrast(S.secondary),fontFamilies.h2,'normal',760);txt(c,'IDENTIDADE  /  '+new Date().getFullYear(),M,1112,16,'#555');c.restore();return}
+function renderPage(n,c){c.save();frame(c,n);if(n===0){fill(c,0,80,W,950,'#FFFFFF');fill(c,0,80,16,950,S.primary);logo(c,65,260,770,430);txt(c,'BRAND GUIDELINES',M,190,19,'#111111','Arial','bold');txt(c,S.tagline||'SISTEMA DE IDENTIDADE VISUAL',M,935,25,'#111111',fontFamilies.h2,'normal',760);txt(c,'IDENTIDADE  /  '+new Date().getFullYear(),M,1112,16,'#555');c.restore();return}
 heading(c,n);switch(n){
 case 1:label(c,'A MARCA',M,278);para(c,S.essence||'Define aqui a essência da marca para apresentar a sua visão de forma clara.',M,335,735,33,51,'#272321',fontFamilies.h2,8);panel(c,M,710,768,290,S.secondary);label(c,'PERSONALIDADE',M+30,760);para(c,S.personality||'Adiciona os atributos que definem a personalidade desta identidade.',M+30,815,700,24,39,'#292421',fontFamilies.h3,5);break;
 case 2:panel(c,M,255,768,480,S.secondary);logo(c,M+28,290,712,395);label(c,'CONCEITO',M,795);para(c,S.concept||'Descreve o conceito criativo que deu origem ao logótipo e às suas decisões formais.',M,850,730,24,39,'#2A2724',fontFamilies.h3,6);break;
@@ -47,7 +52,7 @@ case 14:card(c,'stationery',M,260,768,710,'Estacionário / cartões de visita');
 case 15:card(c,'social',M,260,768,710,'Aplicações digitais / redes sociais');break;
 case 16:card(c,'campaign',M,260,768,710,'Campanha / publicidade');break;
 case 17:card(c,'photo',M,260,768,710,'Fotografia / direção de arte');break;
-case 18:panel(c,M,245,768,355,S.secondary);logo(c,M+18,250,730,340);let colors=[S.primary,S.secondary,S.support1,S.support2];colors.forEach((col,i)=>fill(c,M+i*192,620,192,95,col));variant(c,'symbol','primary',M,740,265,275,S.secondary);pattern(c,M+285,740,483,275);break;
+case 18:{let b=boardCanvas();let sc=Math.min(768/b.width,830/b.height);c.drawImage(b,M,265,b.width*sc,b.height*sc);break;}
 case 19:panel(c,M,260,768,630,S.secondary);logo(c,M+30,310,708,350);txt(c,'IDENTIDADE VISUAL',M+35,755,22,'#555','Arial','bold');txt(c,S.credits||'Créditos por definir',M+35,810,21,'#555');txt(c,new Date().getFullYear(),M+35,850,18,'#555');break;
 }c.restore()}
 function render(){for(let id of fields){let e=$(id);if(e)S[id]=e.value}renderPage(currentPage,ctx);$('pageCounter').textContent=String(currentPage+1).padStart(2,'0')+' / 20';$('pageSelect').value=String(currentPage);renderPalette();renderPattern();renderFonts();renderMockup()}
@@ -83,7 +88,21 @@ async function makePdf(){
   add(`trailer\n<< /Size 63 /Root 1 0 R >>\nstartxref\n${start}\n%%EOF`);
   return new Blob(chunks,{type:'application/pdf'});
 }
-function boardCanvas(){return pageCanvas(18)}
+function boardCanvas(){
+ const b=document.createElement('canvas');b.width=1200;b.height=1000;const c=b.getContext('2d');const g=10,tw=380,th=320,cols=[S.primary,S.secondary,S.support1,S.support2];
+ fill(c,0,0,1200,1000,'#EAE5DE');
+ const tile=(col,row,color)=>{let x=g+col*(tw+g),y=g+row*(th+g);fill(c,x,y,tw,th,color);return [x,y]};
+ let [x,y]=tile(0,0,S.primary);txt(c,'01 / BRAND IDENTITY',x+18,y+28,14,'#FFFFFF','Arial','bold');variant(c,'logo','white',x+12,y+55,tw-24,170,S.primary);txt(c,S.tagline||'IDENTIDADE VISUAL',x+20,y+280,18,'#FFFFFF','Arial','bold',tw-40);
+ [x,y]=tile(1,0,S.secondary);txt(c,'02 / ESSÊNCIA',x+20,y+28,14,'#181818','Arial','bold');para(c,S.essence||S.tagline||S.brandName,x+20,y+92,tw-40,29,42,'#181818',fontFamilies.h1,4);
+ [x,y]=tile(2,0,S.primary);txt(c,'03 / SIGNATURE MARK',x+20,y+28,14,'#FFFFFF','Arial','bold');variant(c,'logo','white',x+12,y+65,tw-24,205,S.primary);
+ [x,y]=tile(0,1,'#FFFFFF');txt(c,'04 / TIPOGRAFIA',x+20,y+28,14,'#171717','Arial','bold');txt(c,'Aa Bb Cc',x+20,y+117,46,'#181818',fontFamilies.h1,'normal',tw-40);txt(c,'Subtítulo da marca',x+20,y+188,28,'#181818',fontFamilies.h2,'normal',tw-40);txt(c,'Corpo de texto / 0123456789',x+20,y+242,18,'#181818',fontFamilies.h3,'normal',tw-40);
+ [x,y]=tile(1,1,'#FFFFFF');txt(c,'05 / APLICAÇÃO',x+20,y+28,14,'#171717','Arial','bold');if(imgs.stationery)photo(c,'stationery',x+18,y+50,tw-36,225);else drawConceptMockup(c,'business',x+18,y+50,tw-36,225);
+ [x,y]=tile(2,1,'#F8F6F2');txt(c,'06 / DIGITAL',x+20,y+28,14,'#171717','Arial','bold');if(imgs.social)photo(c,'social',x+18,y+50,tw-36,225);else drawConceptMockup(c,'social',x+18,y+50,tw-36,225);
+ [x,y]=tile(0,2,S.secondary);txt(c,'07 / PATTERN',x+20,y+28,14,'#181818','Arial','bold');pattern(c,x+16,y+47,tw-32,245);
+ [x,y]=tile(1,2,'#FFFFFF');txt(c,'08 / IDENTIDADE',x+20,y+28,14,'#171717','Arial','bold');variant(c,'symbol','primary',x+15,y+55,180,180,S.secondary);cols.forEach((col,i)=>fill(c,x+205+i*37,y+120,34,80,col));
+ [x,y]=tile(2,2,'#FFFFFF');txt(c,'09 / REAL WORLD',x+20,y+28,14,'#171717','Arial','bold');if(imgs.campaign)photo(c,'campaign',x+18,y+54,tw-36,218);else if(imgs.photo)photo(c,'photo',x+18,y+54,tw-36,218);else drawConceptMockup(c,'outdoor',x+18,y+54,tw-36,218);
+ return b;
+}
 function patternCanvas(){let c=document.createElement('canvas');c.width=1080;c.height=1080;pattern(c.getContext('2d'),0,0,1080,1080);return c}
 function pngBlob(c){return new Promise(r=>c.toBlob(r,'image/png'))}
 function imageBlob(c,type='image/jpeg',quality=.94){return new Promise(r=>c.toBlob(r,type,quality))}
@@ -110,7 +129,7 @@ function svgEscape(v){return String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;'
 function paletteSVG(){const cols=[S.primary,S.secondary,S.support1,S.support2],names=['PRINCIPAL','SECUNDÁRIA','APOIO 01','APOIO 02'];let parts=['<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720">','<rect width="1200" height="720" fill="#FFFFFF"/>','<text x="60" y="85" font-family="Arial" font-size="44" fill="#171717">PALETA CROMÁTICA</text>'];cols.forEach((c,i)=>{let x=60+i*280,k=colorCodes(c);parts.push(`<rect x="${x}" y="145" width="250" height="310" fill="${c}"/><text x="${x}" y="500" font-family="Arial" font-size="23" font-weight="bold" fill="#171717">${names[i]}</text><text x="${x}" y="540" font-family="Arial" font-size="19" fill="#171717">${k.HEX}</text><text x="${x}" y="572" font-family="Arial" font-size="17" fill="#171717">RGB ${k.RGB}</text><text x="${x}" y="604" font-family="Arial" font-size="16" fill="#171717">CMYK ${k.CMYK}</text>`)});parts.push('</svg>');return parts.join('')}
 function getOriginalSvg(key){let asset=S.assets[key];if(!asset?.name.toLowerCase().endsWith('.svg'))return null;try{return atob(asset.data.split(',')[1])}catch(e){try{return decodeURIComponent(asset.data.split(',')[1])}catch{return null}}}
 function svgVariant(key,mode,bg=null){let a=S.assets[key];if(!a)return null;const original=getOriginalSvg(key),base=original?`data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(original)))}`:a.data;let color=mode==='black'?'#000000':mode==='white'?'#FFFFFF':mode==='primary'?S.primary:null;let inner=color?`<mask id="shape" mask-type="alpha" maskUnits="userSpaceOnUse"><image href="${base}" x="0" y="0" width="1000" height="600" preserveAspectRatio="xMidYMid meet"/></mask><rect x="0" y="0" width="1000" height="600" fill="${color}" mask="url(#shape)"/>`:`<image href="${base}" x="0" y="0" width="1000" height="600" preserveAspectRatio="xMidYMid meet"/>`;return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1000 600" width="1000" height="600">${bg?`<rect width="1000" height="600" fill="${bg}"/>`:''}${inner}</svg>`}
-function variantTransparentCanvas(key,mode,bg){const a=document.createElement('canvas');a.width=1200;a.height=720;const c=a.getContext('2d');if(bg)fill(c,0,0,1200,720,bg);let im=imgs[key];if(!im)return a;const pad=60,sc=Math.min((1200-pad*2)/im.width,(720-pad*2)/im.height),w=im.width*sc,h=im.height*sc;c.drawImage(im,(1200-w)/2,(720-h)/2,w,h);if(mode!=='original'){c.globalCompositeOperation='source-in';fill(c,0,0,1200,720,mode==='black'?'#000000':mode==='white'?'#FFFFFF':S.primary);c.globalCompositeOperation='source-over'}return a}
+function variantTransparentCanvas(key,mode,bg){const a=document.createElement('canvas');a.width=1200;a.height=720;const c=a.getContext('2d');if(bg)fill(c,0,0,1200,720,bg);let im=imgs[key];if(!im)return a;const pad=60,sc=Math.min((1200-pad*2)/im.width,(720-pad*2)/im.height),w=im.width*sc,h=im.height*sc;c.drawImage(im,(1200-w)/2,(720-h)/2,w,h);if(mode!=='original'){let colored=document.createElement('canvas');colored.width=1200;colored.height=720;let q=colored.getContext('2d');q.drawImage(im,(1200-w)/2,(720-h)/2,w,h);q.globalCompositeOperation='source-in';fill(q,0,0,1200,720,mode==='black'?'#000000':mode==='white'?'#FFFFFF':S.primary);c.clearRect(0,0,1200,720);if(bg)fill(c,0,0,1200,720,bg);c.drawImage(colored,0,0)}return a}
 function faviconCanvas(key,mode,size){let a=document.createElement('canvas');a.width=a.height=size;let c=a.getContext('2d'),im=imgs[key];if(!im)return a;let pad=Math.max(1,Math.round(size*.08)),scale=Math.min((size-2*pad)/im.width,(size-2*pad)/im.height),w=im.width*scale,h=im.height*scale;c.drawImage(im,(size-w)/2,(size-h)/2,w,h);if(mode!=='original'){c.globalCompositeOperation='source-in';fill(c,0,0,size,size,mode==='black'?'#000000':mode==='white'?'#FFFFFF':S.primary);c.globalCompositeOperation='source-over'}return a}
 function projectWarnings(){let w=[];if(!S.assets.logo)w.push('Falta o logótipo original.');if(!S.assets.symbol)w.push('Falta o símbolo para os favicons e patterns.');for(let k of ['h1','h2','h3'])if(!S.fonts[k])w.push(`Fonte ${k.toUpperCase()} não carregada (será utilizada uma fonte de sistema).`);for(let k of ['stationery','social','campaign','photo'])if(!S.assets[k])w.push(`Aplicação ${k} sem imagem real; aparecerá um marcador de material em falta.`);if(!window.JSZip)w.push('Motor ZIP indisponível.');return w}
 function showValidation(){let v=projectWarnings();$('validation').innerHTML=v.length?'<strong>Verificações:</strong><ul>'+v.map(x=>`<li>${svgEscape(x)}</li>`).join('')+'</ul>':'<strong>Todos os elementos principais estão presentes.</strong>';return v}
@@ -121,3 +140,57 @@ async function makeZipFoundation(){if(!window.JSZip)throw Error('Biblioteca ZIP 
 if(imgs.symbol){for(let mode of ['original','black','white','primary']){for(let size of [16,24,32,64,128]){let f=faviconCanvas('symbol',mode,size);root.file(`03_Favicons/${mode}/${size}.png`,await pngBlob(f))}root.file(`03_Favicons/${mode}/symbol.svg`,svgVariant('symbol',mode));root.file(`03_Favicons/${mode}/favicon.ico`,await icoBlob(faviconCanvas('symbol',mode,32)))}}root.file('Projeto.json',JSON.stringify({format:'LogoPackStudioClean1',...S},null,2));return z.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:5}})}
 function foundationInit(){let gen=$('generatePalette');gen.onclick=generateColors;$('exportZip').onclick=e=>busy(e.target,async()=>{showValidation();download(await makeZipFoundation(),escName()+'-Brand-Pack.zip')});$('exportPalette').onclick=e=>busy(e.target,async()=>download(new Blob([paletteSVG()],{type:'image/svg+xml'}),escName()+'-Paleta.svg'));$('validateProject').onclick=showValidation;$('mockupType').onchange=e=>{S.mockupType=e.target.value;renderMockup()};$('loadLibrary').onclick=loadMockupLibrary;$('mockupManifest').onchange=e=>S.mockupManifest=e.target.value;renderMockup();}
 foundationInit();
+
+// Foundation V2 - standalone exports, pattern controls and extended brand board.
+function patternSVG(){let img=S.assets.symbol?.data;if(S.patternMode==='upload'&&S.assets.pattern)img=S.assets.pattern.data;let scale=Number(S.patternScale||72),gap=Number(S.patternGap||28),step=scale+gap,rot=Number(S.patternRotation||0),layout=S.patternLayout||'stagger';let cells='';if(img){for(let r=0;r<Math.ceil(1080/step)+1;r++)for(let col=0;col<Math.ceil(1080/step)+1;col++){let x=col*step+(layout==='stagger'&&r%2?step/2:layout==='diagonal'?r*step*.25:0),y=r*step;cells+=`<image href="${img}" x="${x}" y="${y}" width="${scale}" height="${scale}" transform="rotate(${rot} ${x+scale/2} ${y+scale/2})"/>`}}return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1080 1080" width="1080" height="1080"><rect width="1080" height="1080" fill="${S.secondary}"/>${cells}</svg>`}
+$('patternSvg').onclick=()=>download(new Blob([patternSVG()],{type:'image/svg+xml'}),escName()+'-Pattern.svg');
+$('patternPng').onclick=e=>busy(e.target,async()=>download(await pngBlob(patternCanvas()),escName()+'-Pattern.png'));
+$('showBoard').onclick=()=>{let b=$('boardPreview'),p=$('pageCanvas'),active=b.hidden;b.hidden=!active;p.hidden=active;if(active){b.getContext('2d').drawImage(boardCanvas(),0,0);$('showBoard').textContent='Voltar ao PDF'}else $('showBoard').textContent='Brand Board'};
+const _renderV2=render;render=function(){_renderV2();if(!$('boardPreview').hidden)$('boardPreview').getContext('2d').drawImage(boardCanvas(),0,0)};
+
+
+// Foundation V3: UI theme is independent from the white-background A4 export.
+(function(){
+ const themeKey='logo-pack-studio-theme-v3';
+ const btn=document.getElementById('themeToggle');
+ function setTheme(mode){
+  document.documentElement.dataset.theme=mode;
+  btn.textContent=mode==='dark'?'☀ Modo claro':'☾ Modo escuro';
+  btn.setAttribute('aria-pressed',String(mode==='dark'));
+  try{localStorage.setItem(themeKey,mode)}catch(e){}
+ }
+ let saved='light';try{saved=localStorage.getItem(themeKey)||'light'}catch(e){}
+ setTheme(saved==='dark'?'dark':'light');
+ btn.addEventListener('click',()=>setTheme(document.documentElement.dataset.theme==='dark'?'light':'dark'));
+ // Estimate the most frequent saturated, opaque colour of the original logo.
+ // User can always override the detected colour in the colour input.
+ function detectPrimary(img){
+  if(!img||!img.naturalWidth)return null;
+  const c=document.createElement('canvas');c.width=96;c.height=96;
+  const q=c.getContext('2d',{willReadFrequently:true});
+  const r=Math.min(88/img.naturalWidth,88/img.naturalHeight);
+  q.drawImage(img,(96-img.naturalWidth*r)/2,(96-img.naturalHeight*r)/2,img.naturalWidth*r,img.naturalHeight*r);
+  let data;try{data=q.getImageData(0,0,96,96).data}catch(e){return null}
+  const bins=new Map();
+  for(let i=0;i<data.length;i+=4){
+   const [rr,gg,bb,a]=data.slice(i,i+4);
+   if(a<180)continue;
+   const max=Math.max(rr,gg,bb),min=Math.min(rr,gg,bb);
+   if(max-min<34||max>247&&min>235||max<35)continue;
+   const key=[rr,gg,bb].map(x=>Math.min(255,Math.round(x/16)*16));
+   const hex='#'+key.map(x=>x.toString(16).padStart(2,'0')).join('').toUpperCase();
+   bins.set(hex,(bins.get(hex)||0)+1);
+  }
+  return [...bins].sort((a,b)=>b[1]-a[1])[0]?.[0]||null;
+ }
+ const logoInput=document.querySelector('[data-asset="logo"]');
+ if(logoInput)logoInput.addEventListener('change',async()=>{
+  // Existing upload handler is asynchronous; wait for it to decode the logo.
+  const file=logoInput.files?.[0];if(!file)return;
+  const image=await new Promise(resolve=>{
+   const fr=new FileReader();fr.onload=()=>{let im=new Image();im.onload=()=>resolve(im);im.onerror=()=>resolve(null);im.src=fr.result};fr.onerror=()=>resolve(null);fr.readAsDataURL(file)
+  });
+  const color=detectPrimary(image);if(!color)return;
+  S.primary=color;document.getElementById('primary').value=color;render();
+ });
+})();
