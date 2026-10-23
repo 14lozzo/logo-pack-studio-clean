@@ -115,7 +115,7 @@ async function makePdf(){
 const pdfCategories=[['stationery','Estacionário'],['social','Redes sociais'],['campaign','Campanhas'],['photo','Direção fotográfica']];
 function appliedFor(cat){return (S.appliedMockups||[]).filter(m=>m.category===cat&&m.data)}
 function buildPdfPages(){const pages=[];for(let i=0;i<20;i++){
- if(i>=14&&i<=17){const cat=pdfCategories[i-14][0],items=appliedFor(cat);for(let j=0;j<items.length;j+=4)pages.push({type:'mockups',cat,items:items.slice(j,j+4),sectionPage:Math.floor(j/4)+1});}
+ if(i>=14&&i<=17){const cat=pdfCategories[i-14][0],items=appliedFor(cat);if(i===17&&S.assets.photo&&!items.length)pages.push({type:'original',index:17});for(let j=0;j<items.length;j+=4)pages.push({type:'mockups',cat,items:items.slice(j,j+4),sectionPage:Math.floor(j/4)+1});}
  else pages.push({type:'original',index:i});
  }return pages}
 function drawContainImage(c,im,x,y,w,h){fill(c,x,y,w,h,'#F6F3EF');const k=Math.min(w/im.width,h/im.height);c.drawImage(im,x+(w-im.width*k)/2,y+(h-im.height*k)/2,im.width*k,im.height*k)}
