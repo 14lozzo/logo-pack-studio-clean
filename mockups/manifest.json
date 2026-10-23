@@ -1,19 +1,4 @@
 {
-  "version": 1,
-  "mockups": [
-    {
-      "id": "business-card-01",
-      "name": "Cartão de visita real (GitHub)",
-      "category": "stationery",
-      "image": "stationery/business-card-01.jpg",
-      "placement": {
-        "x": 0.3,
-        "y": 0.35,
-        "w": 0.35,
-        "h": 0.25
-      }
-    },
-    {
   "id": "business-card-02",
   "name": "Cartão de visita premium — Fotográfico",
   "category": "stationery",
