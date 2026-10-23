@@ -14,6 +14,18 @@
       }
     },
     {
+  "id": "business-card-02",
+  "name": "Cartão de visita premium — Fotográfico",
+  "category": "stationery",
+  "image": "stationery/business-card-02.jpg",
+  "placement": {
+    "x": 0.20,
+    "y": 0.25,
+    "w": 0.60,
+    "h": 0.40
+  }
+},
+    {
       "id": "card-horizontal",
       "name": "Cartão horizontal",
       "category": "stationery",
