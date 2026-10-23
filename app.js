@@ -390,13 +390,13 @@ $('mockupManifest').placeholder='Biblioteca incluída automaticamente · ou URL 
   const h=document.createElement('h3');h.textContent='Editor de mockup — '+m.name;
   const mode=document.createElement('select');mode.innerHTML='<option value="flat">2D · sobreposição plana</option><option value="perspective">Perspetiva · ajustar 4 cantos</option>';mode.value=cfg.mode;
   const labelMode=document.createElement('label');labelMode.textContent='Método de aplicação';labelMode.append(mode);
-  const preview=makeCanvas(760,480);const note=document.createElement('p');note.className='v5-note';note.textContent='Arrasta os quatro pontos vermelhos para posicionar o logótipo. Em perspetiva, adapta os cantos à superfície do objeto.';
+  const preview=makeCanvas(760,480);const note=document.createElement('p');note.className='v5-note';note.textContent='Arrasta os pontos vermelhos para ajustar os cantos. Arrasta dentro do contorno para mover o logótipo inteiro sem alterar a perspetiva.';
   const actions=document.createElement('div');actions.className='v5-actions';
   const apply=document.createElement('button');apply.textContent='Aplicar ao projeto';apply.type='button';
   const reset=document.createElement('button');reset.textContent='Repor posição';reset.type='button';
   const close=document.createElement('button');close.textContent='Fechar editor';close.type='button';
   actions.append(apply,reset,close);editor.append(h,labelMode,note,preview,actions);root.prepend(editor);
-  let base=null,drag=-1;
+  let base=null,drag=-1,moveStart=null,moveQuad=null;
   function draw(){if(!base)return;const q=preview.getContext('2d');q.clearRect(0,0,preview.width,preview.height);
    const composite=renderComposite(base,imgs.logo,cfg.quad,cfg.mode);
    const scale=Math.min(preview.width/base.width,preview.height/base.height),w=base.width*scale,h=base.height*scale,ox=(preview.width-w)/2,oy=(preview.height-h)/2;
@@ -406,9 +406,35 @@ $('mockupManifest').placeholder='Biblioteca incluída automaticamente · ou URL 
   function coord(e){const r=preview.getBoundingClientRect(),px=(e.clientX-r.left)*preview.width/r.width,py=(e.clientY-r.top)*preview.height/r.height;
    if(!base)return null;const sc=Math.min(preview.width/base.width,preview.height/base.height),w=base.width*sc,h=base.height*sc;return {x:(px-(preview.width-w)/2)/w,y:(py-(preview.height-h)/2)/h};
   }
-  preview.addEventListener('pointerdown',e=>{const p=coord(e);if(!p)return;let best=Infinity;cfg.quad.forEach((v,i)=>{let d=Math.hypot((v.x-p.x)*preview.width,(v.y-p.y)*preview.height);if(d<best){best=d;drag=i}});if(best>85){drag=-1;return}preview.setPointerCapture(e.pointerId)});
-  preview.addEventListener('pointermove',e=>{if(drag<0)return;const p=coord(e);if(!p)return;cfg.quad[drag]={x:Math.max(0,Math.min(1,p.x)),y:Math.max(0,Math.min(1,p.y))};draw()});
-  preview.addEventListener('pointerup',()=>drag=-1);preview.addEventListener('pointercancel',()=>drag=-1);
+  // Four-corner editing plus translation of the whole quadrilateral.
+  // Hit testing uses the actual fitted image dimensions, not the canvas dimensions.
+  function imageMetrics(){if(!base)return null;const scale=Math.min(preview.width/base.width,preview.height/base.height);return {w:base.width*scale,h:base.height*scale}}
+  function insideQuad(p,quad){let inside=false;for(let i=0,j=quad.length-1;i<quad.length;j=i++){
+   const a=quad[i],b=quad[j];if((a.y>p.y)!==(b.y>p.y)&&p.x<(b.x-a.x)*(p.y-a.y)/(b.y-a.y)+a.x)inside=!inside;
+  }return inside}
+  function cornerAt(p){const m=imageMetrics();if(!m)return -1;let best=Infinity,idx=-1;
+   cfg.quad.forEach((v,i)=>{const d=Math.hypot((v.x-p.x)*m.w,(v.y-p.y)*m.h);if(d<best){best=d;idx=i}});
+   return best<=17?idx:-1;
+  }
+  function stopDrag(e){drag=-1;moveStart=null;moveQuad=null;if(preview.hasPointerCapture?.(e.pointerId))preview.releasePointerCapture(e.pointerId);preview.style.cursor='grab'}
+  preview.style.cursor='grab';
+  preview.addEventListener('pointerdown',e=>{if(e.button!==undefined&&e.button!==0)return;const p=coord(e);if(!p)return;
+   const corner=cornerAt(p);if(corner>=0){drag=corner;moveStart=null;moveQuad=null}
+   else if(insideQuad(p,cfg.quad)){drag=-1;moveStart=p;moveQuad=cfg.quad.map(v=>({...v}))}
+   else return;
+   preview.setPointerCapture(e.pointerId);preview.style.cursor='grabbing';e.preventDefault();
+  });
+  preview.addEventListener('pointermove',e=>{const p=coord(e);if(!p)return;
+   if(drag>=0){cfg.quad[drag]={x:Math.max(0,Math.min(1,p.x)),y:Math.max(0,Math.min(1,p.y))};draw();return}
+   if(moveStart&&moveQuad){let dx=p.x-moveStart.x,dy=p.y-moveStart.y;
+    // Keep every corner visible without changing the shape or perspective.
+    dx=Math.max(-Math.min(...moveQuad.map(v=>v.x)),Math.min(1-Math.max(...moveQuad.map(v=>v.x)),dx));
+    dy=Math.max(-Math.min(...moveQuad.map(v=>v.y)),Math.min(1-Math.max(...moveQuad.map(v=>v.y)),dy));
+    cfg.quad=moveQuad.map(v=>({x:v.x+dx,y:v.y+dy}));draw();return;
+   }
+   preview.style.cursor=cornerAt(p)>=0?'crosshair':insideQuad(p,cfg.quad)?'grab':'default';
+  });
+  preview.addEventListener('pointerup',stopDrag);preview.addEventListener('pointercancel',stopDrag);
   mode.onchange=()=>{cfg.mode=mode.value;draw()};reset.onclick=()=>{const p=m.placement;cfg.quad=[{x:p.x,y:p.y},{x:p.x+p.w,y:p.y},{x:p.x+p.w,y:p.y+p.h},{x:p.x,y:p.y+p.h}];draw()};close.onclick=()=>{editor.remove();editor=null};
   apply.onclick=async()=>{if(!base||!imgs.logo){alert('Carrega primeiro o logótipo e aguarda a imagem do mockup.');return}
    try{apply.disabled=true;const result=renderComposite(base,imgs.logo,cfg.quad,cfg.mode).toDataURL('image/png');
