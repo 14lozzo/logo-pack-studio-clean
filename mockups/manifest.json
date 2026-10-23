@@ -1,4 +1,18 @@
+
 {
   "version": 1,
-  "mockups": []
+  "mockups": [
+    {
+      "id": "business-card-01",
+      "name": "Cartão de visita 01",
+      "category": "stationery",
+      "image": "stationery/business-card-01.jpg",
+      "placement": {
+        "x": 0.30,
+        "y": 0.35,
+        "w": 0.35,
+        "h": 0.25
+      }
+    }
+  ]
 }
