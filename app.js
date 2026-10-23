@@ -27,9 +27,18 @@ function variantCanvas(key,mode,bg){const a=document.createElement('canvas');a.w
 function variant(c,key,mode,x,y,w,h,bg){panel(c,x,y,w,h,bg||'#F4F0E9');if(!imgs[key]){placeholder(c,x,y,w,h,'Carregar original');return}let v=variantCanvas(key,mode),ratio=Math.min((w-28)/v.width,(h-28)/v.height);c.drawImage(v,x+(w-v.width*ratio)/2,y+(h-v.height*ratio)/2,v.width*ratio,v.height*ratio)}
 function pattern(c,x,y,w,h){
  c.save();c.beginPath();c.rect(x,y,w,h);c.clip();fill(c,x,y,w,h,S.secondary);
- if(S.patternMode==='upload'&&imgs.pattern){let im=imgs.pattern,sz=Math.max(50,Number(S.patternScale)*2),ih=sz*im.height/im.width;for(let py=y;py<y+h;py+=ih)for(let px=x;px<x+w;px+=sz)c.drawImage(im,px,py,sz,ih)}
- else if(imgs.symbol){let v=variantCanvas('symbol','primary'),size=Math.max(16,Number(S.patternScale)),step=Math.max(size+4,size+Number(S.patternGap)),rot=Number(S.patternRotation||0)*Math.PI/180,layout=S.patternLayout||'stagger';for(let row=-1;row<Math.ceil(h/step)+2;row++)for(let col=-1;col<Math.ceil(w/step)+2;col++){let dx=layout==='stagger'&&row%2?step/2:layout==='diagonal'?row*step*.25:0,px=x+col*step+dx+size/2,py=y+row*step+size/2;c.save();c.translate(px,py);c.rotate(rot);c.drawImage(v,-size/2,-size/2,size,size);c.restore()}}
- else txt(c,'Carregar símbolo para gerar pattern',x+20,y+h/2,18,'#888');c.restore()
+ const im=S.patternMode==='upload'?imgs.pattern:imgs.symbol;
+ if(!im){txt(c,S.patternMode==='upload'?'Importar pattern SVG/PNG':'Carregar símbolo para gerar pattern',x+20,y+h/2,18,'#888');c.restore();return}
+ const size=Math.max(8,Number(S.patternScale)||72),gap=Math.max(0,Number(S.patternGap)||0),step=Math.max(8,size+gap),rot=(Number(S.patternRotation)||0)*Math.PI/180,layout=S.patternLayout||'stagger';
+ const ratio=Math.min(size/im.naturalWidth,size/im.naturalHeight),iw=im.naturalWidth*ratio,ih=im.naturalHeight*ratio;
+ const extra=Math.ceil(Math.hypot(w,h)/step)+3,centerX=x+w/2,centerY=y+h/2;
+ for(let row=-extra;row<=extra;row++)for(let col=-extra;col<=extra;col++){
+  const dx=layout==='stagger'&&row%2?step/2:layout==='diagonal'?row*step*.25:0;
+  const px=centerX+col*step+dx,py=centerY+row*step;
+  if(px<x-size||px>x+w+size||py<y-size||py>y+h+size)continue;
+  c.save();c.translate(px,py);c.rotate(rot);c.drawImage(im,-iw/2,-ih/2,iw,ih);c.restore();
+ }
+ c.restore();
 }
 function card(c,key,x,y,w,h,title){if(imgs[key])photo(c,key,x,y,w,h-48);else if(['stationery','social','campaign'].includes(key)){const kind={stationery:'business',social:'social',campaign:'outdoor'}[key];drawConceptMockup(c,kind,x,y,w,h-48);txt(c,'SIMULAÇÃO GRÁFICA · substituir por aplicação real',x+12,y+h-72,15,'#555','Arial','normal',w-24)}else photo(c,key,x,y,w,h-48);txt(c,title,x,y+h-12,19,'#24211F',fontFamilies.h2,'bold',w)}
 function drawConceptMockup(c,kind,x,y,w,h){c.save();c.beginPath();c.rect(x,y,w,h);c.clip();fill(c,x,y,w,h,'#EAE7E2');let rx=x+w*.12,ry=y+h*.13,rw=w*.76,rh=h*.65;if(kind==='outdoor'){rx=x+w*.06;ry=y+h*.28;rw=w*.88;rh=h*.38}if(kind==='social'){rw=Math.min(w*.60,h*.66);rh=rw;rx=x+(w-rw)/2;ry=y+(h-rh)/2}fill(c,rx+12,ry+12,rw,rh,'#D7D1C9');fill(c,rx,ry,rw,rh,kind==='social'?S.primary:S.secondary);if(imgs.logo){let margin=rw*.1;logo(c,rx+margin,ry+rh*.2,rw-2*margin,rh*.6)}else txt(c,'ADICIONAR LOGÓTIPO',rx+18,ry+rh*.5,19,'#666','Arial','normal',rw-36);c.restore()}
@@ -142,7 +151,18 @@ function foundationInit(){let gen=$('generatePalette');gen.onclick=generateColor
 foundationInit();
 
 // Foundation V2 - standalone exports, pattern controls and extended brand board.
-function patternSVG(){let img=S.assets.symbol?.data;if(S.patternMode==='upload'&&S.assets.pattern)img=S.assets.pattern.data;let scale=Number(S.patternScale||72),gap=Number(S.patternGap||28),step=scale+gap,rot=Number(S.patternRotation||0),layout=S.patternLayout||'stagger';let cells='';if(img){for(let r=0;r<Math.ceil(1080/step)+1;r++)for(let col=0;col<Math.ceil(1080/step)+1;col++){let x=col*step+(layout==='stagger'&&r%2?step/2:layout==='diagonal'?r*step*.25:0),y=r*step;cells+=`<image href="${img}" x="${x}" y="${y}" width="${scale}" height="${scale}" transform="rotate(${rot} ${x+scale/2} ${y+scale/2})"/>`}}return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1080 1080" width="1080" height="1080"><rect width="1080" height="1080" fill="${S.secondary}"/>${cells}</svg>`}
+function patternSVG(){
+ const key=S.patternMode==='upload'?'pattern':'symbol',im=imgs[key],source=S.assets[key]?.data;
+ const size=Math.max(8,Number(S.patternScale)||72),gap=Math.max(0,Number(S.patternGap)||0),step=Math.max(8,size+gap),rot=Number(S.patternRotation)||0,layout=S.patternLayout||'stagger';
+ let cells='';if(source&&im){const r=Math.min(size/im.naturalWidth,size/im.naturalHeight),iw=im.naturalWidth*r,ih=im.naturalHeight*r;
+ const extra=Math.ceil(Math.hypot(1080,1080)/step)+3;
+ for(let row=-extra;row<=extra;row++)for(let col=-extra;col<=extra;col++){
+ const dx=layout==='stagger'&&row%2?step/2:layout==='diagonal'?row*step*.25:0;
+ const x=540+col*step+dx,y=540+row*step;
+ if(x< -size||x>1080+size||y< -size||y>1080+size)continue;
+ cells+=`<image href="${source}" x="${x-iw/2}" y="${y-ih/2}" width="${iw}" height="${ih}" transform="rotate(${rot} ${x} ${y})"/>`;
+ }}return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1080" width="1080" height="1080"><rect width="1080" height="1080" fill="${S.secondary}"/>${cells}</svg>`;
+}
 $('patternSvg').onclick=()=>download(new Blob([patternSVG()],{type:'image/svg+xml'}),escName()+'-Pattern.svg');
 $('patternPng').onclick=e=>busy(e.target,async()=>download(await pngBlob(patternCanvas()),escName()+'-Pattern.png'));
 $('showBoard').onclick=()=>{let b=$('boardPreview'),p=$('pageCanvas'),active=b.hidden;b.hidden=!active;p.hidden=active;if(active){b.getContext('2d').drawImage(boardCanvas(),0,0);$('showBoard').textContent='Voltar ao PDF'}else $('showBoard').textContent='Brand Board'};
@@ -194,3 +214,82 @@ const _renderV2=render;render=function(){_renderV2();if(!$('boardPreview').hidde
   S.primary=color;document.getElementById('primary').value=color;render();
  });
 })();
+
+// Foundation V4: deliberate editorial layouts for pages 9 and 10 (zero-based 8, 9).
+const _renderPageV4=renderPage;
+renderPage=function(n,c){
+ if(n!==8&&n!==9)return _renderPageV4(n,c);
+ c.save();frame(c,n);heading(c,n);
+ if(n===9){
+  const cols=[S.primary,S.secondary],names=['PRINCIPAL','SECUNDÁRIA'];
+  cols.forEach((col,i)=>{const x=M+i*405,y=280,k=colorCodes(col);
+   fill(c,x,y,362,430,col);txt(c,names[i],x,y+472,22,'#171717','Arial','bold');
+   txt(c,`HEX  ${k.HEX}`,x,y+513,20,'#171717');
+   txt(c,`RGB  ${k.RGB}`,x,y+549,20,'#171717');
+   txt(c,`CMYK  ${k.CMYK}`,x,y+585,19,'#171717');
+  });caption(c,'CMYK calculado matematicamente · confirmar perfil ICC na impressão.',1000);
+ }else{
+  const items=[
+   {name:'NÃO DISTORCER',kind:'stretch'},
+   {name:'NÃO RODAR',kind:'rotate'},
+   {name:'NÃO ALTERAR CORES',kind:'recolor'},
+   {name:'NÃO APLICAR EFEITOS',kind:'shadow'},
+   {name:'NÃO CORTAR',kind:'crop'},
+   {name:'NÃO USAR SEM CONTRASTE',kind:'contrast'}
+  ];
+  const cellW=365,cellH=240;
+  items.forEach((it,i)=>{const col=i%2,row=Math.floor(i/2),x=M+col*403,y=265+row*302;
+   fill(c,x,y,cellW,cellH,'#F5F3F0');c.save();c.beginPath();c.rect(x,y,cellW,cellH);c.clip();
+   if(imgs.logo){let im=imgs.logo,iw=im.naturalWidth,ih=im.naturalHeight;
+    let ratio=Math.min(285/iw,145/ih),w=iw*ratio,h=ih*ratio,px=x+(cellW-w)/2,py=y+(cellH-h)/2;
+    if(it.kind==='stretch'){c.drawImage(im,x+27,y+86,cellW-54,53)}
+    if(it.kind==='rotate'){c.translate(x+cellW/2,y+cellH/2);c.rotate(-.27);c.drawImage(im,-w/2,-h/2,w,h)}
+    if(it.kind==='recolor'){c.drawImage(im,px,py,w,h);c.globalCompositeOperation='source-in';fill(c,x,y,cellW,cellH,'#33B9A2');c.globalCompositeOperation='source-over'}
+    if(it.kind==='shadow'){c.shadowColor='#111';c.shadowBlur=15;c.shadowOffsetX=13;c.shadowOffsetY=12;c.drawImage(im,px,py,w,h)}
+    if(it.kind==='crop'){c.drawImage(im,x+cellW*.65,y+60,w,h)}
+    if(it.kind==='contrast'){fill(c,x,y,cellW,cellH,S.primary);c.drawImage(im,px,py,w,h);c.globalCompositeOperation='source-in';fill(c,x,y,cellW,cellH,S.primary);c.globalCompositeOperation='source-over'}
+   }else txt(c,'Carregar logótipo',x+50,y+125,20,'#777');
+   c.restore();txt(c,'× '+it.name,x+10,y+cellH+29,16,S.primary,'Arial','bold',cellW-15);
+  });
+  caption(c,'Exemplos de utilizações proibidas. Preservar sempre o desenho original.',1215);
+ }
+ c.restore();
+};
+
+// V4 mockup library: templates are flat visual compositions, not photorealistic renders.
+const mockupLibraryV4={items:[],base:''};
+function libraryBase(u){return new URL('.',u).href}
+async function loadLibraryV4(){
+ const status=$('libraryStatus'),url=$('mockupManifest').value.trim()||new URL('mockups/manifest.json',location.href).href;
+ try{const r=await fetch(url,{cache:'no-store'});if(!r.ok)throw Error('HTTP '+r.status);
+ const j=await r.json();if(!Array.isArray(j.mockups))throw Error('Falta a lista mockups');
+ mockupLibraryV4.items=j.mockups.filter(m=>m&&typeof m.name==='string'&&typeof m.image==='string'&&['stationery','social','campaign'].includes(m.category)&&m.placement&&[m.placement.x,m.placement.y,m.placement.w,m.placement.h].every(v=>typeof v==='number'&&v>=0&&v<=1));
+ mockupLibraryV4.base=libraryBase(url);status.replaceChildren();
+ const grid=document.createElement('div');grid.className='library-grid';
+ for(const m of mockupLibraryV4.items){const card=document.createElement('div'),im=document.createElement('img'),b=document.createElement('button');
+ im.src=new URL(m.image,mockupLibraryV4.base).href;im.alt=m.name;im.loading='lazy';
+ const title=document.createElement('div');title.textContent=m.name;
+ b.textContent='Aplicar ao projeto';b.type='button';b.onclick=()=>applyLibraryMockupV4(m,b);
+ card.append(im,title,b);grid.append(card)}status.append(grid);
+ if(!mockupLibraryV4.items.length)status.textContent='Sem templates válidos no manifesto.';
+ }catch(e){status.textContent='Erro na biblioteca: '+e.message}
+}
+async function applyLibraryMockupV4(m,b){
+ const original=b.textContent;b.disabled=true;b.textContent='A gerar...';
+ try{
+ const url=new URL(m.image,mockupLibraryV4.base).href;
+ const response=await fetch(url);if(!response.ok)throw Error('Imagem HTTP '+response.status);
+ const blob=await response.blob();const data=await new Promise((res,rej)=>{let r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(blob)});
+ const base=new Image();await new Promise((res,rej)=>{base.onload=res;base.onerror=rej;base.src=data});
+ const cv=document.createElement('canvas');cv.width=base.naturalWidth;cv.height=base.naturalHeight;
+ const q=cv.getContext('2d');q.drawImage(base,0,0);
+ const {x,y,w,h}=m.placement,px=x*cv.width,py=y*cv.height,pw=w*cv.width,ph=h*cv.height;
+ if(imgs.logo){const im=imgs.logo,pad=Math.min(pw,ph)*.09,scale=Math.min((pw-pad*2)/im.naturalWidth,(ph-pad*2)/im.naturalHeight),dw=im.naturalWidth*scale,dh=im.naturalHeight*scale;
+ q.drawImage(im,px+(pw-dw)/2,py+(ph-dh)/2,dw,dh)}else throw Error('Carrega primeiro o logótipo');
+ const result=cv.toDataURL('image/png');S.assets[m.category]={data:result,name:'mockup-'+filenameSafe(m.name)+'.png'};
+ await imageFromData(m.category,result);render();b.textContent='Aplicado ✓';
+ }catch(e){alert('Não foi possível aplicar o mockup: '+e.message);b.textContent=original}finally{b.disabled=false}
+}
+$('loadLibrary').onclick=loadLibraryV4;
+$('mockupManifest').placeholder='Biblioteca incluída automaticamente · ou URL do teu GitHub';
+loadLibraryV4();
