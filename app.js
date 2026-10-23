@@ -293,3 +293,113 @@ async function applyLibraryMockupV4(m,b){
 $('loadLibrary').onclick=loadLibraryV4;
 $('mockupManifest').placeholder='Biblioteca incluída automaticamente · ou URL do teu GitHub';
 loadLibraryV4();
+
+
+
+// V5 — per-mockup 2D / perspective editor; safe text boundaries.
+(function(){
+ const limits={essence:420,personality:260,concept:520,tagline:100,credits:90};
+ Object.entries(limits).forEach(([id,max])=>{
+  const el=$(id);if(!el)return;el.maxLength=max;
+  const counter=document.createElement('small');counter.className='v5-counter';
+  el.insertAdjacentElement('afterend',counter);
+  const update=()=>{counter.textContent=`${el.value.length} / ${max} caracteres`;counter.style.color=el.value.length>max*.9?'#c61b3c':''};
+  el.addEventListener('input',update);update();
+ });
+ const css=document.createElement('style');css.textContent=`
+ .v5-counter{display:block;margin:5px 0 10px;font-size:11px;opacity:.75}
+ .v5-editor{margin:18px 0;padding:16px;border:1px solid #bbb6b0;border-radius:9px;max-width:760px}
+ .v5-editor label{display:flex;flex-direction:column;gap:6px;font-weight:600;margin:8px 0}
+ .v5-editor select,.v5-editor input{padding:8px;border:1px solid #aaa;border-radius:5px;background:transparent;color:inherit}
+ .v5-editor canvas{width:100%;height:auto;touch-action:none;cursor:crosshair;background:#ddd;display:block;border-radius:5px}
+ .v5-editor .v5-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+ .v5-editor .v5-note{font-size:12px;opacity:.8;margin:8px 0}
+ `;document.head.append(css);
+ S.mockupPlacements=S.mockupPlacements||{};
+ let editor=null;
+ function getConfig(m){const id=m.id||m.image;const p=m.placement;
+  return S.mockupPlacements[id]||(S.mockupPlacements[id]={mode:'flat',quad:[{x:p.x,y:p.y},{x:p.x+p.w,y:p.y},{x:p.x+p.w,y:p.y+p.h},{x:p.x,y:p.y+p.h}]});
+ }
+ function makeCanvas(w,h){const c=document.createElement('canvas');c.width=w;c.height=h;return c}
+ function renderComposite(base,logoImage,quad,mode){
+  const cv=makeCanvas(base.naturalWidth,base.naturalHeight),q=cv.getContext('2d');q.drawImage(base,0,0);
+  if(!logoImage)return cv;
+  const W=cv.width,H=cv.height,points=quad.map(p=>({x:p.x*W,y:p.y*H}));
+  const texture=makeCanvas(600,360),t=texture.getContext('2d');
+  const scale=Math.min(550/logoImage.naturalWidth,310/logoImage.naturalHeight);
+  const lw=logoImage.naturalWidth*scale,lh=logoImage.naturalHeight*scale;
+  t.drawImage(logoImage,(600-lw)/2,(360-lh)/2,lw,lh);
+  if(mode==='flat'){
+   const x=points[0].x,y=points[0].y,w=points[1].x-x,h=points[3].y-y;
+   q.drawImage(texture,x,y,Math.max(1,w),Math.max(1,h));return cv;
+  }
+  // Bilinear mesh approximation: each tile is mapped by two affine triangles.
+  function interp(u,v){const [a,b,c,d]=points;return {x:(1-u)*(1-v)*a.x+u*(1-v)*b.x+u*v*c.x+(1-u)*v*d.x,y:(1-u)*(1-v)*a.y+u*(1-v)*b.y+u*v*c.y+(1-u)*v*d.y}}
+  function tri(src,dst){const [s0,s1,s2]=src,[d0,d1,d2]=dst;
+   const det=(s0.x*(s1.y-s2.y)+s1.x*(s2.y-s0.y)+s2.x*(s0.y-s1.y));if(Math.abs(det)<.00001)return;
+   const a=(d0.x*(s1.y-s2.y)+d1.x*(s2.y-s0.y)+d2.x*(s0.y-s1.y))/det;
+   const b=(d0.y*(s1.y-s2.y)+d1.y*(s2.y-s0.y)+d2.y*(s0.y-s1.y))/det;
+   const c=(d0.x*(s2.x-s1.x)+d1.x*(s0.x-s2.x)+d2.x*(s1.x-s0.x))/det;
+   const d=(d0.y*(s2.x-s1.x)+d1.y*(s0.x-s2.x)+d2.y*(s1.x-s0.x))/det;
+   const e=(d0.x*(s1.x*s2.y-s2.x*s1.y)+d1.x*(s2.x*s0.y-s0.x*s2.y)+d2.x*(s0.x*s1.y-s1.x*s0.y))/det;
+   const f=(d0.y*(s1.x*s2.y-s2.x*s1.y)+d1.y*(s2.x*s0.y-s0.x*s2.y)+d2.y*(s0.x*s1.y-s1.x*s0.y))/det;
+   q.save();q.beginPath();q.moveTo(d0.x,d0.y);q.lineTo(d1.x,d1.y);q.lineTo(d2.x,d2.y);q.closePath();q.clip();q.transform(a,b,c,d,e,f);q.drawImage(texture,0,0);q.restore();
+  }
+  const N=12;
+  for(let iy=0;iy<N;iy++)for(let ix=0;ix<N;ix++){
+   const u=ix/N,v=iy/N,U=(ix+1)/N,V=(iy+1)/N;
+   const s0={x:u*600,y:v*360},s1={x:U*600,y:v*360},s2={x:U*600,y:V*360},s3={x:u*600,y:V*360};
+   const p0=interp(u,v),p1=interp(U,v),p2=interp(U,V),p3=interp(u,V);
+   tri([s0,s1,s2],[p0,p1,p2]);tri([s0,s2,s3],[p0,p2,p3]);
+  }
+  return cv;
+ }
+ function openEditor(m){
+  if(editor)editor.remove();
+  const cfg=getConfig(m),url=new URL(m.image,mockupLibraryV4.base).href;
+  const root=$('libraryStatus');editor=document.createElement('section');editor.className='v5-editor';
+  const h=document.createElement('h3');h.textContent='Editor de mockup — '+m.name;
+  const mode=document.createElement('select');mode.innerHTML='<option value="flat">2D · sobreposição plana</option><option value="perspective">Perspetiva · ajustar 4 cantos</option>';mode.value=cfg.mode;
+  const labelMode=document.createElement('label');labelMode.textContent='Método de aplicação';labelMode.append(mode);
+  const preview=makeCanvas(760,480);const note=document.createElement('p');note.className='v5-note';note.textContent='Arrasta os quatro pontos vermelhos para posicionar o logótipo. Em perspetiva, adapta os cantos à superfície do objeto.';
+  const actions=document.createElement('div');actions.className='v5-actions';
+  const apply=document.createElement('button');apply.textContent='Aplicar ao projeto';apply.type='button';
+  const reset=document.createElement('button');reset.textContent='Repor posição';reset.type='button';
+  const close=document.createElement('button');close.textContent='Fechar editor';close.type='button';
+  actions.append(apply,reset,close);editor.append(h,labelMode,note,preview,actions);root.prepend(editor);
+  let base=null,drag=-1;
+  function draw(){if(!base)return;const q=preview.getContext('2d');q.clearRect(0,0,preview.width,preview.height);
+   const composite=renderComposite(base,imgs.logo,cfg.quad,cfg.mode);
+   const scale=Math.min(preview.width/base.width,preview.height/base.height),w=base.width*scale,h=base.height*scale,ox=(preview.width-w)/2,oy=(preview.height-h)/2;
+   q.drawImage(composite,ox,oy,w,h);q.save();q.strokeStyle='#E21C45';q.lineWidth=2;q.beginPath();cfg.quad.forEach((p,i)=>{const x=ox+p.x*w,y=oy+p.y*h;i?q.lineTo(x,y):q.moveTo(x,y)});q.closePath();q.stroke();cfg.quad.forEach((p,i)=>{const x=ox+p.x*w,y=oy+p.y*h;q.beginPath();q.arc(x,y,7,0,Math.PI*2);q.fillStyle='#E21C45';q.fill();q.strokeStyle='#fff';q.stroke()});q.restore();
+  }
+  const image=new Image();image.onload=()=>{base=image;draw()};image.onerror=()=>{note.textContent='Não foi possível carregar a imagem. Confirma o caminho e o acesso CORS no GitHub.'};image.crossOrigin='anonymous';image.src=url;
+  function coord(e){const r=preview.getBoundingClientRect(),px=(e.clientX-r.left)*preview.width/r.width,py=(e.clientY-r.top)*preview.height/r.height;
+   if(!base)return null;const sc=Math.min(preview.width/base.width,preview.height/base.height),w=base.width*sc,h=base.height*sc;return {x:(px-(preview.width-w)/2)/w,y:(py-(preview.height-h)/2)/h};
+  }
+  preview.addEventListener('pointerdown',e=>{const p=coord(e);if(!p)return;let best=Infinity;cfg.quad.forEach((v,i)=>{let d=Math.hypot((v.x-p.x)*preview.width,(v.y-p.y)*preview.height);if(d<best){best=d;drag=i}});if(best>85){drag=-1;return}preview.setPointerCapture(e.pointerId)});
+  preview.addEventListener('pointermove',e=>{if(drag<0)return;const p=coord(e);if(!p)return;cfg.quad[drag]={x:Math.max(0,Math.min(1,p.x)),y:Math.max(0,Math.min(1,p.y))};draw()});
+  preview.addEventListener('pointerup',()=>drag=-1);preview.addEventListener('pointercancel',()=>drag=-1);
+  mode.onchange=()=>{cfg.mode=mode.value;draw()};reset.onclick=()=>{const p=m.placement;cfg.quad=[{x:p.x,y:p.y},{x:p.x+p.w,y:p.y},{x:p.x+p.w,y:p.y+p.h},{x:p.x,y:p.y+p.h}];draw()};close.onclick=()=>{editor.remove();editor=null};
+  apply.onclick=async()=>{if(!base||!imgs.logo){alert('Carrega primeiro o logótipo e aguarda a imagem do mockup.');return}
+   try{apply.disabled=true;const result=renderComposite(base,imgs.logo,cfg.quad,cfg.mode).toDataURL('image/png');
+    S.assets[m.category]={data:result,name:'mockup-'+filenameSafe(m.name)+'.png'};await imageFromData(m.category,result);render();note.textContent='Aplicado! A imagem está no Brand Board e no PDF. Guarda o projeto JSON para manter esta escolha.';
+   }catch(e){alert('Erro ao aplicar: '+e.message)}finally{apply.disabled=false}
+  };
+ }
+ // Replace the old immediate-apply behavior with the new per-item editor.
+ applyLibraryMockupV4=async function(m){openEditor(m)};
+ // Ensure the selected mockup geometry persists in saved JSON.
+ // hydrate already restores S.mockupPlacements from project JSON.
+ // Explicit overflow control in paragraph renderer: no text outside its reserved box.
+ para=function(c,s,x,y,maxWidth=740,size=24,lineHeight=37,color='#222',font='Arial',maxLines=8){
+  c.save();c.font=`${size}px ${font}`;c.fillStyle=color;c.textBaseline='alphabetic';
+  const words=String(s||'').trim().split(/\s+/).filter(Boolean),lines=[];let row='';
+  for(const word of words){let part=word;while(c.measureText(part).width>maxWidth&&part.length>1){let cut=part.length-1;while(cut>1&&c.measureText(part.slice(0,cut)+'-').width>maxWidth)cut--;const piece=part.slice(0,cut)+'-';if(row){lines.push(row);row=''}lines.push(piece);part=part.slice(cut)}
+   const test=row?row+' '+part:part;if(c.measureText(test).width>maxWidth&&row){lines.push(row);row=part}else row=test;
+  }if(row)lines.push(row);
+  const truncated=lines.length>maxLines;const visible=lines.slice(0,maxLines);
+  if(truncated&&visible.length){let last=visible.length-1;while(visible[last].length>1&&c.measureText(visible[last]+'…').width>maxWidth)visible[last]=visible[last].slice(0,-1);visible[last]+='…'}
+  visible.forEach((str,i)=>c.fillText(str,x,y+i*lineHeight));c.restore();return visible.length;
+ };
+})();
