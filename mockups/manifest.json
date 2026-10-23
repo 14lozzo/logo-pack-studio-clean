@@ -1,17 +1,256 @@
-
 {
   "version": 1,
   "mockups": [
     {
       "id": "business-card-01",
-      "name": "Cartão de visita 01",
+      "name": "Cartão de visita real (GitHub)",
       "category": "stationery",
       "image": "stationery/business-card-01.jpg",
       "placement": {
-        "x": 0.30,
+        "x": 0.3,
         "y": 0.35,
         "w": 0.35,
         "h": 0.25
+      }
+    },
+    {
+      "id": "card-horizontal",
+      "name": "Cartão horizontal",
+      "category": "stationery",
+      "image": "stationery/card-horizontal.svg",
+      "placement": {
+        "x": 0.275,
+        "y": 0.325,
+        "w": 0.45,
+        "h": 0.3125
+      }
+    },
+    {
+      "id": "card-vertical",
+      "name": "Cartão vertical",
+      "category": "stationery",
+      "image": "stationery/card-vertical.svg",
+      "placement": {
+        "x": 0.3708,
+        "y": 0.2,
+        "w": 0.2583,
+        "h": 0.5813
+      }
+    },
+    {
+      "id": "letterhead",
+      "name": "Papel timbrado",
+      "category": "stationery",
+      "image": "stationery/letterhead.svg",
+      "placement": {
+        "x": 0.3417,
+        "y": 0.1875,
+        "w": 0.3208,
+        "h": 0.6188
+      }
+    },
+    {
+      "id": "envelope",
+      "name": "Envelope",
+      "category": "stationery",
+      "image": "stationery/envelope.svg",
+      "placement": {
+        "x": 0.2542,
+        "y": 0.3375,
+        "w": 0.4917,
+        "h": 0.3375
+      }
+    },
+    {
+      "id": "folder",
+      "name": "Pasta de apresentação",
+      "category": "stationery",
+      "image": "stationery/folder.svg",
+      "placement": {
+        "x": 0.3375,
+        "y": 0.1938,
+        "w": 0.3333,
+        "h": 0.6062
+      }
+    },
+    {
+      "id": "card-angle",
+      "name": "Cartão premium em ângulo",
+      "category": "stationery",
+      "image": "stationery/card-angle.svg",
+      "placement": {
+        "x": 0.3,
+        "y": 0.3312,
+        "w": 0.4,
+        "h": 0.3187
+      }
+    },
+    {
+      "id": "instagram-post",
+      "name": "Instagram post",
+      "category": "social",
+      "image": "social/instagram-post.svg",
+      "placement": {
+        "x": 0.325,
+        "y": 0.2062,
+        "w": 0.35,
+        "h": 0.5375
+      }
+    },
+    {
+      "id": "instagram-story",
+      "name": "Instagram story",
+      "category": "social",
+      "image": "social/instagram-story.svg",
+      "placement": {
+        "x": 0.3875,
+        "y": 0.1437,
+        "w": 0.225,
+        "h": 0.7063
+      }
+    },
+    {
+      "id": "instagram-carousel",
+      "name": "Instagram carousel",
+      "category": "social",
+      "image": "social/instagram-carousel.svg",
+      "placement": {
+        "x": 0.2625,
+        "y": 0.2437,
+        "w": 0.3333,
+        "h": 0.5062
+      }
+    },
+    {
+      "id": "social-banner",
+      "name": "Social banner",
+      "category": "social",
+      "image": "social/social-banner.svg",
+      "placement": {
+        "x": 0.2125,
+        "y": 0.325,
+        "w": 0.575,
+        "h": 0.3
+      }
+    },
+    {
+      "id": "poster",
+      "name": "Poster editorial",
+      "category": "campaign",
+      "image": "campaign/poster.svg",
+      "placement": {
+        "x": 0.3708,
+        "y": 0.1375,
+        "w": 0.2583,
+        "h": 0.7
+      }
+    },
+    {
+      "id": "billboard",
+      "name": "Outdoor panorâmico",
+      "category": "campaign",
+      "image": "campaign/billboard.svg",
+      "placement": {
+        "x": 0.2,
+        "y": 0.3063,
+        "w": 0.6,
+        "h": 0.3312
+      }
+    },
+    {
+      "id": "citylight",
+      "name": "Mupi urbano",
+      "category": "campaign",
+      "image": "campaign/citylight.svg",
+      "placement": {
+        "x": 0.3875,
+        "y": 0.1313,
+        "w": 0.225,
+        "h": 0.7063
+      }
+    },
+    {
+      "id": "storefront",
+      "name": "Painel de loja",
+      "category": "campaign",
+      "image": "campaign/storefront.svg",
+      "placement": {
+        "x": 0.2417,
+        "y": 0.3063,
+        "w": 0.5167,
+        "h": 0.2375
+      }
+    },
+    {
+      "id": "shopping-bag",
+      "name": "Saco de compras",
+      "category": "stationery",
+      "image": "stationery/shopping-bag.svg",
+      "placement": {
+        "x": 0.3708,
+        "y": 0.25,
+        "w": 0.2583,
+        "h": 0.525
+      }
+    },
+    {
+      "id": "packaging",
+      "name": "Caixa de produto",
+      "category": "stationery",
+      "image": "stationery/packaging.svg",
+      "placement": {
+        "x": 0.325,
+        "y": 0.325,
+        "w": 0.3333,
+        "h": 0.35
+      }
+    },
+    {
+      "id": "hangtag",
+      "name": "Etiqueta de roupa",
+      "category": "stationery",
+      "image": "stationery/hangtag.svg",
+      "placement": {
+        "x": 0.4083,
+        "y": 0.1938,
+        "w": 0.1833,
+        "h": 0.5625
+      }
+    },
+    {
+      "id": "notebook",
+      "name": "Caderno de marca",
+      "category": "stationery",
+      "image": "stationery/notebook.svg",
+      "placement": {
+        "x": 0.3417,
+        "y": 0.2,
+        "w": 0.3167,
+        "h": 0.5938
+      }
+    },
+    {
+      "id": "tshirt",
+      "name": "T-shirt editorial",
+      "category": "campaign",
+      "image": "campaign/tshirt.svg",
+      "placement": {
+        "x": 0.3708,
+        "y": 0.3438,
+        "w": 0.2583,
+        "h": 0.3375
+      }
+    },
+    {
+      "id": "event-banner",
+      "name": "Totem de evento",
+      "category": "campaign",
+      "image": "campaign/event-banner.svg",
+      "placement": {
+        "x": 0.4083,
+        "y": 0.15,
+        "w": 0.1833,
+        "h": 0.675
       }
     }
   ]
