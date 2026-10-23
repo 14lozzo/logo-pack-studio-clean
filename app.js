@@ -74,21 +74,21 @@ async function loadFont(k,data,name){if(!data)return;try{let face=new FontFace('
 async function hydrate(){for(let [k,v] of Object.entries(S.assets||{}))await imageFromData(k,v.data);for(let [k,v] of Object.entries(S.fonts||{}))await loadFont(k,v.data,v.name);fields.forEach(k=>{if($(k))$(k).value=S[k]||''});document.querySelector(`input[name=patternMode][value="${S.patternMode}"]`).checked=true;$('patternUploadLabel').hidden=S.patternMode!=='upload';render()}
 function dataURLBlob(data){let [h,body]=data.split(','),mime=h.match(/data:(.*?);/)?.[1]||'application/octet-stream',bytes=atob(body),a=new Uint8Array(bytes.length);for(let i=0;i<bytes.length;i++)a[i]=bytes.charCodeAt(i);return new Blob([a],{type:mime})}
 function download(blob,name){let u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),3000)}
-function pageCanvas(n){let c=document.createElement('canvas');c.width=W;c.height=H;renderPage(n,c.getContext('2d'));return c}
+function pageCanvas(n,scale=1){let c=document.createElement('canvas');c.width=Math.round(W*scale);c.height=Math.round(H*scale);const q=c.getContext('2d');q.scale(scale,scale);renderPage(n,q);return c}
 async function makePdf(){
   await document.fonts.ready;
   const enc=new TextEncoder(),chunks=[],offsets=[0];let pos=0;
   const add=(data)=>{let bytes=typeof data==='string'?enc.encode(data):data;chunks.push(bytes);pos+=bytes.length};
   const object=(id,body)=>{offsets[id]=pos;add(`${id} 0 obj\n`);add(body);add('\nendobj\n')};
-  const jpegBytes=async(c)=>new Uint8Array(await (await imageBlob(c,'image/jpeg',.92)).arrayBuffer());
+  const jpegBytes=async(c)=>new Uint8Array(await (await imageBlob(c,'image/jpeg',.94)).arrayBuffer());
   add('%PDF-1.4\n%----\n');
   object(1,'<< /Type /Catalog /Pages 2 0 R >>');
   object(2,'<< /Type /Pages /Kids ['+Array.from({length:20},(_,i)=>`${3+i*3} 0 R`).join(' ') +'] /Count 20 >>');
   for(let n=0;n<20;n++){
     let pageId=3+n*3,imgId=pageId+1,contentId=pageId+2;
-    const pic=await jpegBytes(pageCanvas(n));
+    const highRes=3; const highResCanvas=pageCanvas(n,highRes); const pic=await jpegBytes(highResCanvas);
     object(pageId,`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.276 841.89] /Resources << /XObject << /Im0 ${imgId} 0 R >> >> /Contents ${contentId} 0 R >>`);
-    offsets[imgId]=pos;add(`${imgId} 0 obj\n<< /Type /XObject /Subtype /Image /Width 900 /Height 1273 /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${pic.length} >>\nstream\n`);add(pic);add('\nendstream\nendobj\n');
+    offsets[imgId]=pos;add(`${imgId} 0 obj\n<< /Type /XObject /Subtype /Image /Width ${highResCanvas.width} /Height ${highResCanvas.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${pic.length} >>\nstream\n`);add(pic);add('\nendstream\nendobj\n');
     const content='q\n595.276 0 0 841.89 0 0 cm\n/Im0 Do\nQ\n';
     object(contentId,`<< /Length ${enc.encode(content).length} >>\nstream\n${content}endstream`);
     await new Promise(r=>setTimeout(r,0));
@@ -263,7 +263,7 @@ async function loadLibraryV4(){
  const status=$('libraryStatus'),url=$('mockupManifest').value.trim()||new URL('mockups/manifest.json',location.href).href;
  try{const r=await fetch(url,{cache:'no-store'});if(!r.ok)throw Error('HTTP '+r.status);
  const j=await r.json();if(!Array.isArray(j.mockups))throw Error('Falta a lista mockups');
- mockupLibraryV4.items=j.mockups.filter(m=>m&&typeof m.name==='string'&&typeof m.image==='string'&&['stationery','social','campaign'].includes(m.category)&&m.placement&&[m.placement.x,m.placement.y,m.placement.w,m.placement.h].every(v=>typeof v==='number'&&v>=0&&v<=1));
+ mockupLibraryV4.items=j.mockups.filter(m=>m&&typeof m.name==='string'&&typeof m.image==='string'&&['stationery','social','campaign','photo'].includes(m.category)&&m.placement&&[m.placement.x,m.placement.y,m.placement.w,m.placement.h].every(v=>typeof v==='number'&&v>=0&&v<=1));
  mockupLibraryV4.base=libraryBase(url);status.replaceChildren();
  const grid=document.createElement('div');grid.className='library-grid';
  for(const m of mockupLibraryV4.items){const card=document.createElement('div'),im=document.createElement('img'),b=document.createElement('button');

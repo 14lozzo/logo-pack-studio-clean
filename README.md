@@ -1,7 +1,13 @@
-# Logo Pack Studio Foundation V4
+# Logo Pack Studio — Foundation V6
 
-Instalar todos os ficheiros da raiz e a pasta `mockups/` no repositório GitHub Pages. A biblioteca funciona automaticamente com `mockups/manifest.json`, sem URL manual. Pode-se usar um manifesto externo com imagens HTTPS e campos `name`, `category` (`stationery`, `social`, `campaign`), `image` e `placement` (`x`, `y`, `w`, `h`, coordenadas relativas 0..1).
+## Instalação
+Carrega todos os ficheiros e a pasta mockups/ na raiz do repositório GitHub Pages. Conserva os ficheiros existentes do teu projeto. Se já tens uma fotografia em mockups/stationery/business-card-01.jpg, mantém-na; podes acrescentá-la ao manifesto manualmente.
 
-O botão **Aplicar ao projeto** cria uma composição 2D com o logótipo e coloca-a no Brand Board, na página PDF correspondente e no ZIP. Não são mockups fotográficos nem aplicações em perspetiva. Para mockups realistas, carregar uma fotografia pronta no respetivo campo da secção Aplicações.
+## PDF mais nítido
+A exportação PDF agora desenha cada página a 2700 x 3819 px (3x a resolução anterior), e grava JPEG com qualidade 94%. Melhora substancialmente texto e formas mas CONTINUA A SER UM PDF RASTERIZADO. Não é PDF vetorial, e imagens de origem com baixa resolução continuarão pixelizadas. Ficheiros PDF maiores e exportação mais lenta são esperados.
 
-Alterações: Pattern Studio com tamanho/rotação reais; página 9 com exemplos de erros; página 10 com HEX RGB CMYK; biblioteca GitHub funcional com três templates demonstrativos. As 20 páginas continuam a usar o mesmo renderer do PDF.
+## Biblioteca
+20 mockups originais em SVG, sem logótipos preexistentes, com posicionamento inicial e ajuste 2D / perspetiva. São COMPOSIÇÕES GRÁFICAS EDITÁVEIS, NÃO FOTOGRAFIAS. Para mockups fotográficos reais, substitui as imagens SVG por fotografias sem marca e ajusta os quatro pontos no editor.
+
+## Atenção
+Ao substituir mockups/manifest.json, perdes as entradas que já tinhas criado se não as preservares. Inclui novamente o teu business-card-01.jpg no manifesto se pretendes mantê-lo.
