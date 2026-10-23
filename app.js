@@ -76,19 +76,30 @@ function dataURLBlob(data){let [h,body]=data.split(','),mime=h.match(/data:(.*?)
 function download(blob,name){let u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),3000)}
 function pageCanvas(n,scale=1){let c=document.createElement('canvas');c.width=Math.round(W*scale);c.height=Math.round(H*scale);const q=c.getContext('2d');q.scale(scale,scale);renderPage(n,q);return c}
 async function makePdf(){
+  // Lossless high-resolution PDF. Canvas text is still raster; unlike the previous
+  // JPEG encoder, this avoids lossy compression around thin letterforms and logos.
   await document.fonts.ready;
   const enc=new TextEncoder(),chunks=[],offsets=[0];let pos=0;
   const add=(data)=>{let bytes=typeof data==='string'?enc.encode(data):data;chunks.push(bytes);pos+=bytes.length};
   const object=(id,body)=>{offsets[id]=pos;add(`${id} 0 obj\n`);add(body);add('\nendobj\n')};
-  const jpegBytes=async(c)=>new Uint8Array(await (await imageBlob(c,'image/jpeg',.94)).arrayBuffer());
+  async function losslessRGB(canvas){
+    const ctx=canvas.getContext('2d',{willReadFrequently:true});
+    const rgba=ctx.getImageData(0,0,canvas.width,canvas.height).data;
+    const rgb=new Uint8Array(canvas.width*canvas.height*3);
+    // PDF DeviceRGB has no alpha. Pages have an opaque white background.
+    for(let i=0,j=0;i<rgba.length;i+=4){const a=rgba[i+3]/255;rgb[j++]=Math.round(rgba[i]*a+255*(1-a));rgb[j++]=Math.round(rgba[i+1]*a+255*(1-a));rgb[j++]=Math.round(rgba[i+2]*a+255*(1-a))}
+    if(typeof CompressionStream!=='function')throw Error('Este navegador não suporta exportação PDF sem perdas (CompressionStream). Atualiza o Chrome ou Edge.');
+    const compressed=await new Response(new Blob([rgb]).stream().pipeThrough(new CompressionStream('deflate'))).arrayBuffer();
+    return new Uint8Array(compressed);
+  }
   add('%PDF-1.4\n%----\n');
   object(1,'<< /Type /Catalog /Pages 2 0 R >>');
   object(2,'<< /Type /Pages /Kids ['+Array.from({length:20},(_,i)=>`${3+i*3} 0 R`).join(' ') +'] /Count 20 >>');
   for(let n=0;n<20;n++){
-    let pageId=3+n*3,imgId=pageId+1,contentId=pageId+2;
-    const highRes=3; const highResCanvas=pageCanvas(n,highRes); const pic=await jpegBytes(highResCanvas);
+    const pageId=3+n*3,imgId=pageId+1,contentId=pageId+2;
+    const highResCanvas=pageCanvas(n,3); const pic=await losslessRGB(highResCanvas);
     object(pageId,`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.276 841.89] /Resources << /XObject << /Im0 ${imgId} 0 R >> >> /Contents ${contentId} 0 R >>`);
-    offsets[imgId]=pos;add(`${imgId} 0 obj\n<< /Type /XObject /Subtype /Image /Width ${highResCanvas.width} /Height ${highResCanvas.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${pic.length} >>\nstream\n`);add(pic);add('\nendstream\nendobj\n');
+    offsets[imgId]=pos;add(`${imgId} 0 obj\n<< /Type /XObject /Subtype /Image /Width ${highResCanvas.width} /Height ${highResCanvas.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /FlateDecode /Length ${pic.length} >>\nstream\n`);add(pic);add('\nendstream\nendobj\n');
     const content='q\n595.276 0 0 841.89 0 0 cm\n/Im0 Do\nQ\n';
     object(contentId,`<< /Length ${enc.encode(content).length} >>\nstream\n${content}endstream`);
     await new Promise(r=>setTimeout(r,0));
