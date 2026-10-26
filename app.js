@@ -208,7 +208,7 @@ const _renderV2=render;render=function(){_renderV2();if(!$('boardPreview').hidde
   btn.setAttribute('aria-pressed',String(mode==='dark'));
   try{localStorage.setItem(themeKey,mode)}catch(e){}
  }
- let saved='light';try{saved=localStorage.getItem(themeKey)||'light'}catch(e){}
+ let saved='dark';try{saved=localStorage.getItem(themeKey)||'dark'}catch(e){}
  setTheme(saved==='dark'?'dark':'light');
  btn.addEventListener('click',()=>setTheme(document.documentElement.dataset.theme==='dark'?'light':'dark'));
  // Estimate the most frequent saturated, opaque colour of the original logo.
