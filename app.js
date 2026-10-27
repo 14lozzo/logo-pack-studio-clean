@@ -162,8 +162,56 @@ function hexRgb(h){let [r,g,b]=rgb(h);return {r,g,b}}
 function colorCodes(h){const {r,g,b}=hexRgb(h),k=1-Math.max(r,g,b)/255;let v=k>=1?[0,0,0,100]:[Math.round((1-r/255-k)/(1-k)*100),Math.round((1-g/255-k)/(1-k)*100),Math.round((1-b/255-k)/(1-k)*100),Math.round(k*100)];return {HEX:h.toUpperCase(),RGB:`${r}, ${g}, ${b}`,CMYK:`${v.join(' / ')} (aprox.)`}}
 function rgbHsl(h){let [r,g,b]=rgb(h).map(x=>x/255),max=Math.max(r,g,b),min=Math.min(r,g,b),d=max-min,l=(max+min)/2,s=d===0?0:d/(1-Math.abs(2*l-1)),hu=0;if(d){switch(max){case r:hu=((g-b)/d)%6;break;case g:hu=(b-r)/d+2;break;default:hu=(r-g)/d+4}hu*=60}return [(hu+360)%360,s,l]}
 function hslHex(h,s,l){h=((h%360)+360)%360;let a=s*Math.min(l,1-l);let f=n=>{let k=(n+h/30)%12;return Math.round(255*(l-a*Math.max(-1,Math.min(k-3,9-k,1))))};return '#'+[f(0),f(8),f(4)].map(x=>x.toString(16).padStart(2,'0')).join('').toUpperCase()}
-function generateColors(){const [h,s,l]=rgbHsl(S.primary),m=$('paletteMethod').value,offsets={golden:[137.5,275,52.5],analogous:[30,330,60],triadic:[120,240,180],complementary:[180,155,205]}[m];let cs=offsets.map((o,i)=>hslHex(h+o,Math.max(.22,Math.min(.75,s*(i===1?.65:.85))),Math.max(.25,Math.min(.84,l+(i===1?.16:.06)))));if($('autoSecondary').checked){S.secondary=cs[0];$('secondary').value=S.secondary}S.support1=cs[1];S.support2=cs[2];$('support1').value=S.support1;$('support2').value=S.support2;render()}
-function svgEscape(v){return String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function generateColors(){
+ const [h,sat,light]=rgbHsl(S.primary);
+ const method=$('paletteMethod').value;
+ const offsets=({golden:[137.5,275],analogous:[30,330],triadic:[120,240],complementary:[180,150]})[method]||[137.5,275];
+ if($('autoSecondary').checked){
+  S.secondary=contrastPartner(S.primary);$('secondary').value=S.secondary;
+ }
+ S.support1=hslHex(h+offsets[0],Math.max(.28,Math.min(.75,sat*.8)),Math.max(.25,Math.min(.8,light+.08)));
+ S.support2=hslHex(h+offsets[1],Math.max(.2,Math.min(.65,sat*.55)),Math.max(.27,Math.min(.85,light+.18)));
+ $('support1').value=S.support1;$('support2').value=S.support2;render();
+}
+function contrastPartner(hex){
+ const [h,s,l]=rgbHsl(hex);
+ // Shift lightness by approximately 60% of its available range, towards the opposite pole.
+ const target=l>.5?Math.max(.10,l*.40):Math.min(.94,l+.60*(1-l));
+ return hslHex(h,Math.max(.18,Math.min(.78,s*.65)),target);
+}
+function detectLogoPalette(img){
+ if(!img||!img.naturalWidth)return [];
+ const c=document.createElement('canvas');c.width=c.height=128;
+ const q=c.getContext('2d',{willReadFrequently:true});
+ const scale=Math.min(120/img.naturalWidth,120/img.naturalHeight);
+ q.drawImage(img,(128-img.naturalWidth*scale)/2,(128-img.naturalHeight*scale)/2,img.naturalWidth*scale,img.naturalHeight*scale);
+ let pixels;try{pixels=q.getImageData(0,0,128,128).data}catch(e){return []}
+ const bins=new Map();
+ for(let i=0;i<pixels.length;i+=4){
+  const r=pixels[i],g=pixels[i+1],b=pixels[i+2],alpha=pixels[i+3];if(alpha<180)continue;
+  const max=Math.max(r,g,b),min=Math.min(r,g,b),chroma=max-min;
+  if(max>245&&min>235||max<24||chroma<22)continue;
+  const key=[r,g,b].map(v=>Math.min(255,Math.round(v/20)*20));
+  const hex='#'+key.map(v=>v.toString(16).padStart(2,'0')).join('').toUpperCase();
+  bins.set(hex,(bins.get(hex)||0)+1);
+ }
+ const sorted=[...bins].sort((a,b)=>b[1]-a[1]);const chosen=[];
+ for(const [hex,count] of sorted){
+  const rgb1=rgb(hex);
+  if(chosen.some(x=>{const rgb2=rgb(x);return Math.sqrt(rgb1.reduce((sum,v,i)=>sum+(v-rgb2[i])**2,0))<85}))continue;
+  chosen.push(hex);if(chosen.length===3)break;
+ }
+ return chosen;
+}
+function applyLogoPalette(image){
+ const colors=detectLogoPalette(image);if(!colors.length)return;
+ S.primary=colors[0];$('primary').value=S.primary;
+ S.secondary=colors[1]||contrastPartner(S.primary);$('secondary').value=S.secondary;
+ $('autoSecondary').checked=true;
+ generateColors();
+ if(colors[2]){S.support1=colors[2];$('support1').value=S.support1;render()}
+}
+
 function paletteSVG(){const cols=[S.primary,S.secondary,S.support1,S.support2],names=['PRINCIPAL','SECUNDÁRIA','APOIO 01','APOIO 02'];let parts=['<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720">','<rect width="1200" height="720" fill="#FFFFFF"/>','<text x="60" y="85" font-family="Arial" font-size="44" fill="#171717">PALETA CROMÁTICA</text>'];cols.forEach((c,i)=>{let x=60+i*280,k=colorCodes(c);parts.push(`<rect x="${x}" y="145" width="250" height="310" fill="${c}"/><text x="${x}" y="500" font-family="Arial" font-size="23" font-weight="bold" fill="#171717">${names[i]}</text><text x="${x}" y="540" font-family="Arial" font-size="19" fill="#171717">${k.HEX}</text><text x="${x}" y="572" font-family="Arial" font-size="17" fill="#171717">RGB ${k.RGB}</text><text x="${x}" y="604" font-family="Arial" font-size="16" fill="#171717">CMYK ${k.CMYK}</text>`)});parts.push('</svg>');return parts.join('')}
 function getOriginalSvg(key){let asset=S.assets[key];if(!asset?.name.toLowerCase().endsWith('.svg'))return null;try{return atob(asset.data.split(',')[1])}catch(e){try{return decodeURIComponent(asset.data.split(',')[1])}catch{return null}}}
 function svgVariant(key,mode,bg=null){let a=S.assets[key];if(!a)return null;const original=getOriginalSvg(key),base=original?`data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(original)))}`:a.data;let color=mode==='black'?'#000000':mode==='white'?'#FFFFFF':mode==='primary'?S.primary:null;let inner=color?`<mask id="shape" mask-type="alpha" maskUnits="userSpaceOnUse"><image href="${base}" x="0" y="0" width="1000" height="600" preserveAspectRatio="xMidYMid meet"/></mask><rect x="0" y="0" width="1000" height="600" fill="${color}" mask="url(#shape)"/>`:`<image href="${base}" x="0" y="0" width="1000" height="600" preserveAspectRatio="xMidYMid meet"/>`;return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1000 600" width="1000" height="600">${bg?`<rect width="1000" height="600" fill="${bg}"/>`:''}${inner}</svg>`}
@@ -211,36 +259,14 @@ const _renderV2=render;render=function(){_renderV2();if(!$('boardPreview').hidde
  let saved='dark';try{saved=localStorage.getItem(themeKey)||'dark'}catch(e){}
  setTheme(saved==='dark'?'dark':'light');
  btn.addEventListener('click',()=>setTheme(document.documentElement.dataset.theme==='dark'?'light':'dark'));
- // Estimate the most frequent saturated, opaque colour of the original logo.
- // User can always override the detected colour in the colour input.
- function detectPrimary(img){
-  if(!img||!img.naturalWidth)return null;
-  const c=document.createElement('canvas');c.width=96;c.height=96;
-  const q=c.getContext('2d',{willReadFrequently:true});
-  const r=Math.min(88/img.naturalWidth,88/img.naturalHeight);
-  q.drawImage(img,(96-img.naturalWidth*r)/2,(96-img.naturalHeight*r)/2,img.naturalWidth*r,img.naturalHeight*r);
-  let data;try{data=q.getImageData(0,0,96,96).data}catch(e){return null}
-  const bins=new Map();
-  for(let i=0;i<data.length;i+=4){
-   const [rr,gg,bb,a]=data.slice(i,i+4);
-   if(a<180)continue;
-   const max=Math.max(rr,gg,bb),min=Math.min(rr,gg,bb);
-   if(max-min<34||max>247&&min>235||max<35)continue;
-   const key=[rr,gg,bb].map(x=>Math.min(255,Math.round(x/16)*16));
-   const hex='#'+key.map(x=>x.toString(16).padStart(2,'0')).join('').toUpperCase();
-   bins.set(hex,(bins.get(hex)||0)+1);
-  }
-  return [...bins].sort((a,b)=>b[1]-a[1])[0]?.[0]||null;
- }
+ // Detect brand colours from uploaded logo, retaining the existing upload/decode handler.
  const logoInput=document.querySelector('[data-asset="logo"]');
  if(logoInput)logoInput.addEventListener('change',async()=>{
-  // Existing upload handler is asynchronous; wait for it to decode the logo.
   const file=logoInput.files?.[0];if(!file)return;
   const image=await new Promise(resolve=>{
-   const fr=new FileReader();fr.onload=()=>{let im=new Image();im.onload=()=>resolve(im);im.onerror=()=>resolve(null);im.src=fr.result};fr.onerror=()=>resolve(null);fr.readAsDataURL(file)
+   const fr=new FileReader();fr.onload=()=>{const im=new Image();im.onload=()=>resolve(im);im.onerror=()=>resolve(null);im.src=fr.result};fr.onerror=()=>resolve(null);fr.readAsDataURL(file);
   });
-  const color=detectPrimary(image);if(!color)return;
-  S.primary=color;document.getElementById('primary').value=color;render();
+  if(image)applyLogoPalette(image);
  });
 })();
 
